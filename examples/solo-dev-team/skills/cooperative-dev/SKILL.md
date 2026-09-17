@@ -37,7 +37,7 @@ The repository's `.agent-team/` directory is the durable handoff state. Buzz roo
 ```json
 {
   "task": "short-task-id",
-  "phase": "planning|implementation|review|verification|complete|blocked",
+  "phase": "planning|implementation|review|complete|blocked",
   "owner": "architect|implementer|none",
   "repoRoot": "absolute-or-REPOS-relative-path",
   "baseCommit": "git-sha-or-null",
@@ -50,6 +50,19 @@ The repository's `.agent-team/` directory is the durable handoff state. Buzz roo
 
 Do not fabricate a path or commit SHA. Use `null` when the repository state does not provide one. The Implementer must treat a `repoRoot` mismatch as a blocker rather than editing another checkout.
 
+Normal state transitions are:
+
+```text
+planning / architect
+  -> implementation / implementer
+  -> review / architect
+  -> implementation / implementer   (REVIEW_FAIL only)
+  -> review / architect
+  -> complete / none                (REVIEW_PASS)
+```
+
+A plan contradiction may move the task to `blocked / architect`. Do not edit production source while state ownership points to the other role unless the handoff explicitly explains the transition.
+
 ## Handoff transport
 
 Do not rely on a plain assistant response containing `@Name`. A role handoff must be a real Buzz message in the current channel so it creates the signed mention that wakes the teammate.
@@ -58,25 +71,27 @@ Do not rely on a plain assistant response containing `@Name`. A role handoff mus
 - Use the teammate's exact current Buzz display name in the `@mention` text.
 - When the teammate pubkey is known, pass it with `--mention`; otherwise exact current-channel member-name resolution may be used.
 - Check the successful command result: the intended teammate should appear in `mention_pubkeys`.
-- Do not send acknowledgement-only callback mentions; send only a plan, blocker, implementation result, or review result that requires action.
+- Do not send acknowledgement-only callback mentions; send only a plan, blocker, implementation result, or failed-review correction that requires action.
+- `[REVIEW_PASS]` is terminal: publish it without an agent mention so no completed task wakes another model turn.
 
 ## Architect protocol
 
 - Find root cause and define invariants before implementation.
 - Put the approved plan in `PLAN.md`.
-- Record the selected repository in `STATE.json`.
-- Publish `@Implementer [PLAN_READY]` through `buzz messages send` in the current channel.
-- On return, compare the actual Git diff and fresh verification against the plan.
-- Publish `@Implementer [REVIEW_PASS]` or `@Implementer [REVIEW_FAIL]` with concrete evidence. A passing review may also include a separate human-facing summary when useful.
+- Record the selected repository in `STATE.json` with `planning / architect` while planning.
+- Before handoff, change state to `implementation / implementer`, then publish `@Implementer [PLAN_READY]` through `buzz messages send` in the current channel.
+- On return, set state to `review / architect` and compare the actual Git diff plus fresh verification against the plan.
+- On failure, return state to `implementation / implementer` and publish `@Implementer [REVIEW_FAIL]` with concrete evidence.
+- On success, set state to `complete / none` and publish a channel-visible `[REVIEW_PASS]` result without mentioning Implementer.
 
 ## Implementer protocol
 
-- Confirm the handoff resolves to the repository recorded in `STATE.json`.
+- Confirm the handoff resolves to the repository recorded in `STATE.json` and ownership is `implementer`.
 - Implement the current plan rather than inventing a replacement architecture.
 - Prefer a failing test before behavior-changing production code.
 - Record exact verification commands/results in `VERIFICATION.md`.
-- If repository evidence contradicts the plan, publish `@Architect [PLAN_BLOCKED]` through `buzz messages send`.
-- When ready, publish `@Architect [IMPLEMENTATION_READY]` through `buzz messages send`.
+- If repository evidence contradicts the plan, set `blocked / architect` and publish `@Architect [PLAN_BLOCKED]` through `buzz messages send`.
+- When ready, set `review / architect` and publish `@Architect [IMPLEMENTATION_READY]` through `buzz messages send`.
 
 ## Evidence rule
 
