@@ -2,18 +2,26 @@ const TEAMS_SOURCE: &str = include_str!("../src/managed_agents/teams.rs");
 const SOLO_DEV_SOURCE: &str = include_str!("../src/managed_agents/solo_dev.rs");
 
 #[test]
-fn built_in_team_catalog_exposes_solo_dev_pair() {
-    assert!(TEAMS_SOURCE.contains("SOLO_DEV_TEAM_ID"));
-    assert!(TEAMS_SOURCE.contains("ARCHITECT_PERSONA_ID"));
-    assert!(TEAMS_SOURCE.contains("IMPLEMENTER_PERSONA_ID"));
-}
-
-#[test]
-fn normal_team_load_bootstraps_solo_dev_personas() {
+fn normal_team_load_bootstraps_solo_dev_extension() {
     assert!(
         TEAMS_SOURCE.contains("ensure_solo_dev_personas(app)?"),
         "loading teams should ensure the fork-provided Architect/Implementer definitions exist"
     );
+    assert!(
+        TEAMS_SOURCE.contains("ensure_solo_dev_team_record(&mut records, &now)"),
+        "loading teams should seed the fork-specific Solo Dev team without changing upstream's built-in table"
+    );
+    assert!(
+        TEAMS_SOURCE.contains("record.id != super::solo_dev::SOLO_DEV_TEAM_ID"),
+        "upstream retirement logic must preserve the fork-specific built-in marker"
+    );
+}
+
+#[test]
+fn solo_dev_extension_owns_the_role_pair() {
+    assert!(SOLO_DEV_SOURCE.contains("ARCHITECT_PERSONA_ID"));
+    assert!(SOLO_DEV_SOURCE.contains("IMPLEMENTER_PERSONA_ID"));
+    assert!(SOLO_DEV_SOURCE.contains("ensure_solo_dev_team_record"));
 }
 
 #[test]
