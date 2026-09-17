@@ -65,7 +65,17 @@ test("team deployment UI consumes the strict Solo Dev guard", () => {
   assert.match(source, /Runtime fallback is disabled for this team/);
   assert.match(
     source,
-    /runtimes\.find\(\(runtime\) => runtime\.id === runtimeId\)/,
-    "Solo Dev deploy must use the persona's exact runtime rather than default fallback",
+    /runtime\.id === \(persona\.runtime\?\.trim\(\) \?\? ""\)/,
+    "Solo Dev deploy must use each persona's exact configured runtime rather than default fallback",
+  );
+  assert.match(
+    source,
+    /if \(!runtimeToUse\) \{\s*return;/,
+    "deployment should fail closed if runtime availability changes between render and click",
+  );
+  assert.doesNotMatch(
+    source,
+    /throw new Error\(\s*`Solo Dev runtime/,
+    "local strict-runtime validation should not be swallowed by the mutation error catch",
   );
 });
