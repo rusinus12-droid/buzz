@@ -31,12 +31,25 @@ struct BuiltInTeam {
     persona_ids: &'static [&'static str],
 }
 
-const BUILT_IN_TEAMS: &[BuiltInTeam] = &[BuiltInTeam {
-    id: "builtin-team:welcome",
-    name: "Welcome Team",
-    description: Some("A friendly starter trio ready to help you plan, create, and ship."),
-    persona_ids: &["builtin:fizz", "builtin:honey", "builtin:bumble"],
-}];
+const BUILT_IN_TEAMS: &[BuiltInTeam] = &[
+    BuiltInTeam {
+        id: "builtin-team:welcome",
+        name: "Welcome Team",
+        description: Some("A friendly starter trio ready to help you plan, create, and ship."),
+        persona_ids: &["builtin:fizz", "builtin:honey", "builtin:bumble"],
+    },
+    BuiltInTeam {
+        id: super::solo_dev::SOLO_DEV_TEAM_ID,
+        name: "Solo Dev — Codex + Hermes",
+        description: Some(
+            "Codex plans and reviews while Hermes implements and verifies in the same Buzz room.",
+        ),
+        persona_ids: &[
+            super::solo_dev::ARCHITECT_PERSONA_ID,
+            super::solo_dev::IMPLEMENTER_PERSONA_ID,
+        ],
+    },
+];
 
 // Built-in teams that have been retired. A stored copy that still exactly
 // matches its seed is purged on load (the user never touched it); customized
@@ -177,6 +190,11 @@ pub(crate) fn load_teams_readonly(path: &std::path::Path) -> Result<Vec<TeamReco
 }
 
 pub fn load_teams<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<Vec<TeamRecord>, String> {
+    // The Solo Dev team is built into this fork, while its two definitions are
+    // intentionally kept out of upstream's enormous built-in persona table.
+    // Ensure those definitions exist before the built-in team is surfaced.
+    super::solo_dev::ensure_solo_dev_personas(app)?;
+
     let path = teams_store_path(app)?;
     let now = now_iso();
 
