@@ -38,6 +38,19 @@ Authority order:
 
 If they disagree, investigate and reconcile them. Never overwrite reality with a stale status document.
 
+Use these phase/owner transitions as the normal state machine:
+
+```text
+planning / architect
+  -> implementation / implementer
+  -> review / architect
+  -> implementation / implementer   (only after REVIEW_FAIL)
+  -> review / architect
+  -> complete / none                (after REVIEW_PASS)
+```
+
+A plan contradiction may move the task to `blocked / architect` until the Architect revises the plan. Do not perform production edits when `STATE.json.owner` names the other role unless the handoff explicitly explains the transition.
+
 ## Handoffs are real Buzz messages
 
 A handoff is not complete until it is published as a notifying Buzz mention in the **same channel where the current turn arrived**.
@@ -51,13 +64,13 @@ buzz messages send --channel <current-channel-uuid> --content "@Architect [IMPLE
 
 Follow the Buzz base-prompt mention rules rather than copying those examples blindly: when a teammate pubkey is already known, pass it with `--mention`; otherwise exact member-name resolution may be used. A successful handoff should have the intended recipient in the command result's `mention_pubkeys`. Do not treat a plain final response containing `@Name` as proof that the teammate was notified.
 
-Use these markers at the beginning of the handoff content so the receiving role can react consistently:
+Use these markers consistently:
 
-- `@Implementer [PLAN_READY]` — Architect has a plan ready for implementation.
-- `@Architect [PLAN_BLOCKED]` — Implementer found evidence that invalidates or blocks the plan.
-- `@Architect [IMPLEMENTATION_READY]` — implementation and verification evidence are ready for review.
-- `@Implementer [REVIEW_FAIL]` — review found concrete corrections to make.
-- `@Implementer [REVIEW_PASS]` — implementation satisfies the current plan.
+- `@Implementer [PLAN_READY]` — Architect has a plan ready for implementation; this is a notifying handoff.
+- `@Architect [PLAN_BLOCKED]` — Implementer found evidence that invalidates or blocks the plan; this is a notifying handoff.
+- `@Architect [IMPLEMENTATION_READY]` — implementation and verification evidence are ready for review; this is a notifying handoff.
+- `@Implementer [REVIEW_FAIL]` — review found concrete corrections to make; this is a notifying handoff.
+- `[REVIEW_PASS]` — implementation satisfies the current plan; publish it as the final channel-visible result **without mentioning Implementer**, because there is no further agent action to trigger.
 
 A handoff message is a summary, not the source of truth. The receiving agent must read the repository state before acting. Do not send a separate acknowledgement-only mention; the callback should carry actual work, a blocker, or a review result.
 
@@ -76,5 +89,5 @@ A task is complete only when:
 
 1. The current plan's acceptance criteria are satisfied.
 2. Fresh verification evidence is recorded.
-3. The Architect has reviewed the actual diff and published `[REVIEW_PASS]`.
-4. `.agent-team/STATE.json` reflects a completed/verified phase.
+3. The Architect has reviewed the actual diff and published `[REVIEW_PASS]` without waking another agent.
+4. `.agent-team/STATE.json` reflects `complete` / `none`.
