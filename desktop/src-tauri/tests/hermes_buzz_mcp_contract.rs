@@ -11,6 +11,10 @@
 //! Hermes model such as `ollama-cloud:<model>` remains sticky without requiring
 //! the user to launch Hermes separately in an Ollama mode.
 //!
+//! Hermes effort uses the generic ACP startup sentinel as its native tier. This
+//! lets the Solo Dev Implementer inherit `high` from its persona and lets Buzz
+//! project later user changes through the same single startup authority.
+//!
 //! The legacy Tier-2 Hermes preset may remain for compatibility: discovery
 //! seeds built-in IDs first and skips a preset whose ID is already present.
 
@@ -43,6 +47,10 @@ fn hermes_is_first_class_runtime_with_buzz_dev_mcp() {
     assert!(
         hermes.contains("model_env_var: Some(\"BUZZ_ACP_MODEL\")"),
         "the persona's provider-qualified Hermes model must be applied to every new ACP session"
+    );
+    assert!(
+        hermes.contains("thinking_env_var: Some(\"BUZZ_ACP_EFFORT_LEVEL\")"),
+        "Hermes persona effort must participate in Buzz's spawn-scoped ACP effort projection"
     );
     assert!(
         hermes.contains("HERMES_ACP_SKIP_CONFIGURED_MCP"),
