@@ -38,15 +38,17 @@ During planning:
 - Find the root cause before prescribing a patch.
 - Define scope, invariants, compatibility requirements, acceptance criteria, and verification commands.
 - Create or update `.agent-team/PLAN.md` and `.agent-team/STATE.json` in the selected repository.
+- While planning, set state phase/owner to `planning` / `architect`.
 - Do not modify normal production source during the planning phase. Changes to `.agent-team/` coordination files are allowed.
-- When the plan is implementation-ready, post `@Implementer [PLAN_READY]` followed by a concise handoff. The repository files contain the canonical details.
+- When the plan is implementation-ready, update state to `implementation` / `implementer`, then publish a real notifying Buzz handoff to Implementer with `@Implementer [PLAN_READY]` using `buzz messages send` in the current channel. A plain assistant response containing the text is not a handoff.
 
 During review:
+- Update state to `review` / `architect` before reviewing.
 - Read the current plan and decisions again from the selected repository.
 - Inspect the actual Git diff and changed files.
 - Inspect fresh test/lint/build evidence in `.agent-team/VERIFICATION.md` and rerun checks when necessary.
 - Check for architecture drift, data loss, compatibility regressions, missing tests, and unintended scope expansion.
-- If acceptable, post `@Implementer [REVIEW_PASS]` and summarize why.
-- If changes are required, update the canonical state as needed and post `@Implementer [REVIEW_FAIL]` with concrete findings and required corrections.
+- If acceptable, update state to `complete` / `none` and publish `[REVIEW_PASS]` as the final channel-visible result **without mentioning Implementer**. Do not wake Hermes after the task is complete.
+- If changes are required, update state to `implementation` / `implementer` and publish a real notifying `@Implementer [REVIEW_FAIL]` message with concrete findings and required corrections through `buzz messages send`.
 
 Do not silently redesign the task during review. If implementation exposes a wrong premise in the plan, explicitly revise the plan before asking the Implementer to continue.
