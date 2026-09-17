@@ -5,9 +5,11 @@
 //! `known_acp_runtime()`, so leaving Hermes only in the Tier-2 preset table
 //! causes ACP sessions to start with `mcpServers: []` and prevents Hermes from
 //! publishing its reply back into a Buzz room.
+//!
+//! The legacy Tier-2 Hermes preset may remain for compatibility: discovery
+//! seeds built-in IDs first and skips a preset whose ID is already present.
 
 const CATALOG_SOURCE: &str = include_str!("../src/managed_agents/discovery/catalog.rs");
-const PRESETS_SOURCE: &str = include_str!("../src/managed_agents/discovery/presets.rs");
 
 fn runtime_block<'a>(source: &'a str, id: &str) -> Option<&'a str> {
     let marker = format!("id: \"{id}\"");
@@ -29,12 +31,12 @@ fn hermes_is_first_class_runtime_with_buzz_dev_mcp() {
         hermes.contains("mcp_command: Some(\"buzz-dev-mcp\")"),
         "Hermes must receive buzz-dev-mcp so it can publish replies to Buzz rooms"
     );
-}
-
-#[test]
-fn hermes_is_not_duplicated_in_tier2_presets() {
     assert!(
-        !PRESETS_SOURCE.contains("id: \"hermes\""),
-        "Hermes must have one authoritative runtime definition; keep it out of PRESET_HARNESSES once promoted"
+        hermes.contains("supports_acp_model_switching: true"),
+        "Hermes model selection should remain owned by the ACP session"
+    );
+    assert!(
+        hermes.contains("HERMES_ACP_SKIP_CONFIGURED_MCP"),
+        "Buzz should own the session MCP list without starting unrelated global Hermes MCP servers"
     );
 }
