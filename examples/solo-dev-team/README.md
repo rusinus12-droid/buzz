@@ -23,16 +23,20 @@ Buzz projects each role's selected model through `BUZZ_ACP_MODEL`. `buzz-acp` ap
    - Implementer keeps runtime `hermes`; Hermes ACP model discovery can surface configured Ollama Cloud models in the normal Buzz model picker.
    - Implementer starts at `high` reasoning effort. Raise it to `max` from the managed-agent Thinking effort control for unusually hard fixes; the effort is applied at ACP session creation.
 4. Deploy **Solo Dev — Codex + Hermes** to the project/channel where you want the pair to work.
+   - Solo Dev intentionally disables Buzz's normal missing-runtime fallback. If either role's configured runtime is unavailable (or unset), deployment is blocked instead of silently replacing that role with another runtime.
+   - This protects the core contract: Architect stays Codex and Implementer stays Hermes unless you explicitly edit their definitions.
 
 After this, day-to-day work stays in Buzz. You should not need to launch a separate Hermes terminal session merely to participate in the team.
 
 ## Normal flow
 
 1. Mention **Architect** with the task.
-2. Architect resolves the repository under `REPOS/`, analyzes it, writes `.agent-team/PLAN.md` and state, then posts `@Implementer [PLAN_READY]`.
-3. Implementer verifies the same repository, implements/tests the plan, records evidence, then posts `@Architect [IMPLEMENTATION_READY]`.
+2. Architect resolves the repository under `REPOS/`, analyzes it, writes `.agent-team/PLAN.md` and state, then publishes a real Buzz mention to Implementer with `[PLAN_READY]`.
+3. Implementer verifies the same repository, implements/tests the plan, records evidence, then publishes a real Buzz mention to Architect with `[IMPLEMENTATION_READY]`.
 4. Architect reviews the real Git diff and verification evidence.
-5. A failed review returns `@Implementer [REVIEW_FAIL]`; a passing review ends with `[REVIEW_PASS]`.
+5. A failed review publishes `[REVIEW_FAIL]` back to Implementer; a passing review ends with `[REVIEW_PASS]`.
+
+Handoffs are sent through `buzz messages send` in the current channel. A plain response that only contains `@Architect` or `@Implementer` is not treated as proof that the teammate was notified.
 
 Both managed agents stay **Owner only**. Buzz ACP authorizes NIP-OA sibling agents with the same owner, so the two teammates can hand work to each other without opening them to arbitrary channel authors.
 
