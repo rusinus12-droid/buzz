@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -51,4 +52,20 @@ test("Solo Dev blocks blank runtime configuration and deduplicates ids", () => {
     "hermes",
     UNCONFIGURED_RUNTIME_ID,
   ]);
+});
+
+test("team deployment UI consumes the strict Solo Dev guard", () => {
+  const source = readFileSync(
+    new URL("../ui/AddTeamToChannelDialog.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /getSoloDevRuntimeGuard\(team\?\.id, resolved, runtimes\)/);
+  assert.match(source, /soloDevRuntimeBlocked/);
+  assert.match(source, /Runtime fallback is disabled for this team/);
+  assert.match(
+    source,
+    /runtimes\.find\(\(runtime\) => runtime\.id === runtimeId\)/,
+    "Solo Dev deploy must use the persona's exact runtime rather than default fallback",
+  );
 });
