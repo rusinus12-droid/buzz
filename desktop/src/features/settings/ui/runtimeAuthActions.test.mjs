@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -46,4 +47,15 @@ test("other runtimes keep their full advertised auth method list", () => {
     visibleRuntimeAuthActions("codex", methods).map((method) => method.id),
     methods.map((method) => method.id),
   );
+});
+
+test("HarnessRow consumes the Hermes auth-action policy", () => {
+  const source = readFileSync(new URL("./HarnessRow.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /shouldDiscoverRuntimeAuthActions\(runtime\)/);
+  assert.match(
+    source,
+    /visibleRuntimeAuthActions\(runtime\.id, authMethodsQuery\.data\?\.methods \?\? \[\]\)/,
+  );
+  assert.match(source, /enabled: shouldDiscoverAuthActions/);
 });
