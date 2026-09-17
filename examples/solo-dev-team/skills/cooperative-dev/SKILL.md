@@ -1,6 +1,6 @@
 ---
 name: "cooperative-dev"
-description: "Coordinate Architect planning/review with Implementer coding through Git, .agent-team state, and Buzz handoff markers."
+description: "Coordinate Architect planning/review with Implementer coding through Git, .agent-team state, and notifying Buzz handoffs."
 ---
 
 # Cooperative Development
@@ -50,14 +50,24 @@ The repository's `.agent-team/` directory is the durable handoff state. Buzz roo
 
 Do not fabricate a path or commit SHA. Use `null` when the repository state does not provide one. The Implementer must treat a `repoRoot` mismatch as a blocker rather than editing another checkout.
 
+## Handoff transport
+
+Do not rely on a plain assistant response containing `@Name`. A role handoff must be a real Buzz message in the current channel so it creates the signed mention that wakes the teammate.
+
+- Use `buzz messages send` with the channel UUID from the current `<context>`.
+- Use the teammate's exact current Buzz display name in the `@mention` text.
+- When the teammate pubkey is known, pass it with `--mention`; otherwise exact current-channel member-name resolution may be used.
+- Check the successful command result: the intended teammate should appear in `mention_pubkeys`.
+- Do not send acknowledgement-only callback mentions; send only a plan, blocker, implementation result, or review result that requires action.
+
 ## Architect protocol
 
 - Find root cause and define invariants before implementation.
 - Put the approved plan in `PLAN.md`.
 - Record the selected repository in `STATE.json`.
-- Handoff with `@Implementer [PLAN_READY]`.
+- Publish `@Implementer [PLAN_READY]` through `buzz messages send` in the current channel.
 - On return, compare the actual Git diff and fresh verification against the plan.
-- Reply with `[REVIEW_PASS]` or `[REVIEW_FAIL]` and concrete evidence.
+- Publish `@Implementer [REVIEW_PASS]` or `@Implementer [REVIEW_FAIL]` with concrete evidence. A passing review may also include a separate human-facing summary when useful.
 
 ## Implementer protocol
 
@@ -65,8 +75,8 @@ Do not fabricate a path or commit SHA. Use `null` when the repository state does
 - Implement the current plan rather than inventing a replacement architecture.
 - Prefer a failing test before behavior-changing production code.
 - Record exact verification commands/results in `VERIFICATION.md`.
-- If repository evidence contradicts the plan, use `@Architect [PLAN_BLOCKED]`.
-- When ready, use `@Architect [IMPLEMENTATION_READY]`.
+- If repository evidence contradicts the plan, publish `@Architect [PLAN_BLOCKED]` through `buzz messages send`.
+- When ready, publish `@Architect [IMPLEMENTATION_READY]` through `buzz messages send`.
 
 ## Evidence rule
 
