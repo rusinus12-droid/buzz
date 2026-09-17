@@ -20,8 +20,7 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         mcp_hooks: false,
         underlying_cli: Some("goose"),
         cli_install_commands: &["curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash"],
-        // Goose's stable release currently publishes only the Unix installer;
-        // its official Windows instructions intentionally point at this main-branch script.
+        // Goose's stable release currently publishes only the Unix installer; its official Windows instructions intentionally point at this main-branch script.
         cli_install_commands_windows: &[windows_install_command!("goose", "https://raw.githubusercontent.com/aaif-goose/goose/main/download_cli.ps1", "$env:CONFIGURE='false'; ")],
         adapter_install_commands: &[],
         cli_install_instructions_url: "https://goose-docs.ai/docs/getting-started/installation/",
@@ -117,6 +116,54 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         login_hint: Some("Run `codex login` to authenticate."),
         // Verified: `codex login status` exits 0 when logged in, non-zero otherwise.
         auth_probe_args: Some(&["codex", "login", "status"]),
+    },
+    KnownAcpRuntime {
+        id: "hermes",
+        label: "Hermes Agent",
+        commands: &["hermes-acp"],
+        aliases: &["hermes"],
+        avatar_url: "",
+        // Hermes publishes its room replies through the Buzz developer MCP.
+        // Keeping this on the first-class runtime fixes preset sessions that
+        // previously started with `mcpServers: []` and could not answer rooms.
+        mcp_command: Some("buzz-dev-mcp"),
+        mcp_hooks: false,
+        underlying_cli: Some("hermes"),
+        cli_install_commands: &["curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"],
+        cli_install_commands_windows: &[windows_install_command!("hermes", "https://hermes-agent.nousresearch.com/install.ps1")],
+        // Older Hermes installs may have `hermes` but not the `hermes-acp`
+        // launcher. `hermes update` refreshes the managed install and launchers.
+        adapter_install_commands: &["hermes update"],
+        cli_install_instructions_url: "https://hermes-agent.nousresearch.com/docs/getting-started/installation",
+        adapter_install_instructions_url: "https://hermes-agent.nousresearch.com/docs/user-guide/features/acp",
+        cli_install_hint: "Install Hermes Agent, configure a provider/model once, and Buzz will reuse the same Hermes credentials, memory, skills, and sessions.",
+        adapter_install_hint: "Run `hermes update` if the Hermes CLI exists but `hermes-acp` is missing.",
+        // Hermes reads the canonical AGENTS/.agents project paths itself.
+        skill_dir: None,
+        // Hermes advertises its provider/model inventory over ACP, so Buzz can
+        // show Ollama Cloud (and other authenticated providers) without env
+        // rewriting or a separate terminal session.
+        supports_acp_model_switching: true,
+        model_env_var: None,
+        provider_env_var: None,
+        provider_locked: false,
+        // Buzz owns the per-session MCP list. Skip unrelated global MCP startup
+        // while still accepting MCP servers supplied through ACP session/new.
+        default_env: &[("HERMES_ACP_SKIP_CONFIGURED_MCP", "1")],
+        config_file_path: None,
+        config_file_format: None,
+        supports_acp_native_config: false,
+        // Hermes receives the generic ACP effort tier rather than a Buzz-owned
+        // provider env var; its provider adapter performs the final mapping.
+        thinking_env_var: None,
+        effort_normalization: None,
+        effort_accepted_values: None,
+        max_tokens_env_var: None,
+        context_limit_env_var: None,
+        max_rounds_env_var: None,
+        required_normalized_fields: &[],
+        login_hint: Some("Run `hermes model` once to configure Ollama Cloud or another provider."),
+        auth_probe_args: None,
     },
     KnownAcpRuntime {
         id: "buzz-agent",
