@@ -7,9 +7,21 @@ The team has exactly two primary roles:
 
 The user should not have to manually copy context between agents. Use the shared repository and Buzz room as the handoff medium.
 
+## Repository workspace
+
+Buzz-managed agents start in the Buzz workspace. Repository checkouts live under `REPOS/`. The active Community can point `REPOS/` at the user's existing development directory through its `reposDir` setting, so both agents see the same local checkouts without duplicating them.
+
+Before repository work, both agents must resolve one target repository and use that repository root as the `workdir` for repository tools. Prefer, in order:
+
+1. the repository identified by current Buzz project/channel context;
+2. an exact path or repository named by the user/handoff;
+3. an unambiguous immediate child of `REPOS/`.
+
+Do not recursively search the user's home directory to guess a repository. The Implementer must verify that it is in the same repository the Architect planned against before editing.
+
 ## Canonical project state
 
-For a repository task, maintain these files under `.agent-team/`:
+For a repository task, maintain these files under `<repo-root>/.agent-team/`:
 
 - `PLAN.md` — current approved design and acceptance criteria.
 - `STATE.json` — machine-readable current phase, owner, Git baseline, completed work, and remaining work.
@@ -45,7 +57,7 @@ A handoff message is a summary, not the source of truth. The receiving agent mus
 - Do not let both agents independently edit the same production files in parallel.
 - Never discard another agent's uncommitted changes.
 - Do not use destructive Git operations (`reset --hard`, force push, destructive rebase) unless the user explicitly approves them.
-- Keep Buzz-managed Hermes agents **Owner only** because the ACP host can auto-approve shell permission requests.
+- Keep both managed agents **Owner only**. Buzz ACP treats agents with a valid NIP-OA attestation for the same owner as siblings, so the team can hand work to each other without opening either agent to arbitrary channel authors.
 
 ## Completion
 
