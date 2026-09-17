@@ -16,7 +16,8 @@ Buzz projects each role's selected model through `BUZZ_ACP_MODEL`. `buzz-acp` ap
 1. In **Settings → Runtimes**, make sure Codex and Hermes are available.
    - Codex uses the normal Codex CLI login/ChatGPT subscription credential store.
    - Hermes uses the normal Hermes installation and ACP launcher (`hermes-acp`).
-   - Hermes ACP reuses `~/.hermes` credentials/config. Ollama Cloud therefore needs to be authenticated/configured in Hermes once; after that Buzz can discover its models over ACP.
+   - Hermes ACP reuses `~/.hermes` credentials/config. Ollama Cloud therefore needs credentials/configuration once; after that Buzz can discover its models over ACP.
+   - This fork keeps Hermes ACP's **Configure Hermes provider** terminal setup action visible in the Hermes runtime menu even when Buzz otherwise considers auth “not applicable.” Starting that action from Buzz launches the adapter-provided setup wizard; after it finishes, use **Check again** and select the Ollama Cloud model from Buzz. Day-to-day Hermes launches no longer need a separate terminal command.
 2. Configure the active Community's **repos directory** to the parent folder that already contains your local source checkouts (for example `/Users/you/Projects`). Buzz exposes it to managed agents as `REPOS/` without copying the repositories.
 3. In **Agents**, edit the seeded **Architect** and **Implementer** definitions to pin the models you want.
    - Architect keeps runtime `codex` and can be pinned to the desired Codex model (for this workflow, Astra). `INITIAL_AGENT_MODE=read-only` selects Codex ACP's conservative approval/network posture, but the sandbox is still workspace-write so the Architect can create `.agent-team` files. The team protocol—not filesystem immutability—keeps normal production-code edits assigned to Implementer.
@@ -34,7 +35,7 @@ After this, day-to-day work stays in Buzz. You should not need to launch a separ
 2. Architect resolves the repository under `REPOS/`, analyzes it, writes `.agent-team/PLAN.md` and state, then publishes a real Buzz mention to Implementer with `[PLAN_READY]`.
 3. Implementer verifies the same repository, implements/tests the plan, records evidence, then publishes a real Buzz mention to Architect with `[IMPLEMENTATION_READY]`.
 4. Architect reviews the real Git diff and verification evidence.
-5. A failed review publishes `[REVIEW_FAIL]` back to Implementer; a passing review ends with `[REVIEW_PASS]`.
+5. A failed review publishes `[REVIEW_FAIL]` back to Implementer; a passing review publishes terminal `[REVIEW_PASS]` without waking Implementer again.
 
 Handoffs are sent through `buzz messages send` in the current channel. A plain response that only contains `@Architect` or `@Implementer` is not treated as proof that the teammate was notified.
 
