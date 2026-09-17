@@ -341,8 +341,7 @@ pub fn delete_team_with_cascade(app: &AppHandle, team_id: &str) -> Result<Vec<St
         // Byte-snapshot both stores before writing so a save failure rolls
         // back both, via the same commit primitive as catalog adoption (I6).
         let personas_snap = crate::managed_agents::storage::snapshot_store(&personas_path)?;
-        let teams_snap = teams_store_path(app)
-            .and_then(|path| crate::managed_agents::storage::snapshot_store(&path))?;
+        let teams_snap = crate::managed_agents::storage::snapshot_store(&teams_path)?;
 
         crate::managed_agents::storage::commit_stores_with_snapshots(
             &personas_path,
