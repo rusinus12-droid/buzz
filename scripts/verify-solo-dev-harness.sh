@@ -13,7 +13,11 @@ fi
 printf '\n==> Solo Dev persona pack\n'
 cargo test -p buzz-persona --test solo_dev_pack
 
-printf '\n==> Solo Dev desktop runtime contracts\n'
+printf '\n==> Solo Dev runtime/seed unit contracts\n'
+cargo test --manifest-path desktop/src-tauri/Cargo.toml solo_dev_runtime_tests
+cargo test --manifest-path desktop/src-tauri/Cargo.toml managed_agents::solo_dev::tests
+
+printf '\n==> Solo Dev desktop integration contracts\n'
 cargo test \
   --manifest-path desktop/src-tauri/Cargo.toml \
   --test hermes_buzz_mcp_contract \
