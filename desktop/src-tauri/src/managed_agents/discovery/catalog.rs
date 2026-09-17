@@ -20,7 +20,8 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         mcp_hooks: false,
         underlying_cli: Some("goose"),
         cli_install_commands: &["curl -fsSL https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh | CONFIGURE=false bash"],
-        // Goose's stable release currently publishes only the Unix installer; its official Windows instructions intentionally point at this main-branch script.
+        // Goose's stable release currently publishes only the Unix installer;
+        // its official Windows instructions intentionally point at this main-branch script.
         cli_install_commands_windows: &[windows_install_command!("goose", "https://raw.githubusercontent.com/aaif-goose/goose/main/download_cli.ps1", "$env:CONFIGURE='false'; ")],
         adapter_install_commands: &[],
         cli_install_instructions_url: "https://goose-docs.ai/docs/getting-started/installation/",
@@ -136,15 +137,17 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         adapter_install_commands: &["hermes update"],
         cli_install_instructions_url: "https://hermes-agent.nousresearch.com/docs/getting-started/installation",
         adapter_install_instructions_url: "https://hermes-agent.nousresearch.com/docs/user-guide/features/acp",
-        cli_install_hint: "Install Hermes Agent, configure a provider/model once, and Buzz will reuse the same Hermes credentials, memory, skills, and sessions.",
+        cli_install_hint: "Install Hermes Agent, configure provider credentials once, then select the provider-qualified model in Buzz.",
         adapter_install_hint: "Run `hermes update` if the Hermes CLI exists but `hermes-acp` is missing.",
         // Hermes reads the canonical AGENTS/.agents project paths itself.
         skill_dir: None,
-        // Hermes advertises its provider/model inventory over ACP, so Buzz can
-        // show Ollama Cloud (and other authenticated providers) without env
-        // rewriting or a separate terminal session.
+        // Hermes advertises provider-qualified model ids over ACP. Persist the
+        // selected id into BUZZ_ACP_MODEL so buzz-acp applies session/set_model
+        // immediately after every session/new. This makes e.g.
+        // `ollama-cloud:<model>` sticky for the managed agent without changing
+        // the user's Hermes-wide default or requiring a separate launch command.
         supports_acp_model_switching: true,
-        model_env_var: None,
+        model_env_var: Some("BUZZ_ACP_MODEL"),
         provider_env_var: None,
         provider_locked: false,
         // Buzz owns the per-session MCP list. Skip unrelated global MCP startup
@@ -153,8 +156,9 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         config_file_path: None,
         config_file_format: None,
         supports_acp_native_config: false,
-        // Hermes receives the generic ACP effort tier rather than a Buzz-owned
-        // provider env var; its provider adapter performs the final mapping.
+        // Hermes receives the generic ACP effort tier; buzz-acp applies it at
+        // ACP session startup and Hermes' provider adapter performs the final
+        // provider-specific effort mapping.
         thinking_env_var: None,
         effort_normalization: None,
         effort_accepted_values: None,
@@ -162,7 +166,7 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         context_limit_env_var: None,
         max_rounds_env_var: None,
         required_normalized_fields: &[],
-        login_hint: Some("Run `hermes model` once to configure Ollama Cloud or another provider."),
+        login_hint: Some("Configure Ollama Cloud or another provider once, then choose its model in Buzz."),
         auth_probe_args: None,
     },
     KnownAcpRuntime {
