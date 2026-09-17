@@ -43,20 +43,25 @@ fn definition_from_persona_md(
         model: None,
         provider: None,
         name_pool: vec![],
-        // These are fork-provided team personas, not upstream built-ins. Keeping
-        // them non-builtin prevents upstream `merge_personas` from demoting them
-        // because it only knows the upstream built-in ID table.
+        // Fork-provided definitions stay user-editable so the user can select
+        // the exact Codex/Hermes model in Buzz. The built-in team references
+        // these ids, which protects them from deletion while the team exists;
+        // do not mark them as directory-backed team personas (`source_team`),
+        // because Buzz intentionally locks model/system-prompt editing for
+        // that imported-team shape.
         is_builtin: false,
         is_active: true,
         shared: false,
-        source_team: Some(SOLO_DEV_TEAM_ID.to_string()),
-        source_team_persona_slug: Some(persona.name),
+        source_team: None,
+        source_team_persona_slug: None,
         catalog_source: None,
         team_catalog_source: None,
         env_vars: BTreeMap::new(),
         // Hermes ACP can execute terminal commands and Buzz may answer ACP
         // approval requests automatically. Solo Dev agents therefore default
         // to owner-only access even if a future build relaxes the global clamp.
+        // Buzz ACP's owner gate also accepts NIP-OA siblings owned by the same
+        // user, so Architect ↔ Implementer handoffs remain possible.
         respond_to: Some("owner-only".to_string()),
         respond_to_allowlist: vec![],
         parallelism: Some(1),
@@ -168,6 +173,16 @@ mod tests {
         assert!(implementer.provider.is_none());
         assert_eq!(implementer.respond_to.as_deref(), Some("owner-only"));
         assert!(implementer.system_prompt.contains("[IMPLEMENTATION_READY]"));
+    }
+
+    #[test]
+    fn solo_dev_definitions_remain_editable_model_profiles() {
+        let records = solo_dev_persona_records("2026-09-17T00:00:00Z").unwrap();
+        for record in records {
+            assert!(!record.is_builtin);
+            assert!(record.source_team.is_none());
+            assert!(record.source_team_persona_slug.is_none());
+        }
     }
 
     #[test]
