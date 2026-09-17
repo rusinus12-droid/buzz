@@ -30,6 +30,14 @@ fn definition_from_persona_md(
         TEAM_INSTRUCTIONS.trim()
     );
 
+    let mut env_vars = BTreeMap::new();
+    if id == ARCHITECT_PERSONA_ID {
+        // codex-acp officially supports INITIAL_AGENT_MODE. Keep the planning
+        // role in read-only mode at the runtime boundary, not merely by prompt,
+        // so production source writes remain the Implementer's responsibility.
+        env_vars.insert("INITIAL_AGENT_MODE".to_string(), "read-only".to_string());
+    }
+
     Ok(AgentDefinition {
         id: id.to_string(),
         display_name: persona.display_name,
@@ -56,7 +64,7 @@ fn definition_from_persona_md(
         source_team_persona_slug: None,
         catalog_source: None,
         team_catalog_source: None,
-        env_vars: BTreeMap::new(),
+        env_vars,
         // Hermes ACP can execute terminal commands and Buzz may answer ACP
         // approval requests automatically. Solo Dev agents therefore default
         // to owner-only access even if a future build relaxes the global clamp.
@@ -162,6 +170,10 @@ mod tests {
         assert!(architect.model.is_none());
         assert!(architect.provider.is_none());
         assert_eq!(architect.respond_to.as_deref(), Some("owner-only"));
+        assert_eq!(
+            architect.env_vars.get("INITIAL_AGENT_MODE").map(String::as_str),
+            Some("read-only")
+        );
         assert!(architect.system_prompt.contains("[PLAN_READY]"));
 
         let implementer = records
@@ -172,6 +184,7 @@ mod tests {
         assert!(implementer.model.is_none());
         assert!(implementer.provider.is_none());
         assert_eq!(implementer.respond_to.as_deref(), Some("owner-only"));
+        assert!(!implementer.env_vars.contains_key("INITIAL_AGENT_MODE"));
         assert!(implementer.system_prompt.contains("[IMPLEMENTATION_READY]"));
     }
 
