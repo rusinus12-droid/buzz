@@ -13,10 +13,12 @@ cargo test \
   --test hermes_buzz_mcp_contract \
   --test solo_dev_team_contract
 
-printf '\n==> Solo Dev team runtime guard\n'
+printf '\n==> Solo Dev desktop TypeScript contracts\n'
 node \
   --import ./desktop/test-loader.mjs \
   --experimental-strip-types \
-  --test desktop/src/features/agents/lib/soloDevRuntimeGuard.test.mjs
+  --test \
+  desktop/src/features/agents/lib/soloDevRuntimeGuard.test.mjs \
+  desktop/src/features/settings/ui/runtimeAuthActions.test.mjs
 
 printf '\nSolo Dev harness contract checks passed.\n'
