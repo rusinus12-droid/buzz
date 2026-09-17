@@ -42,6 +42,10 @@ import {
 } from "./harnessCatalogLogic";
 import { formValuesFromCatalogEntry } from "./harnessFormLogic";
 import { deleteConfirmState } from "./harnessGalleryLogic";
+import {
+  shouldDiscoverRuntimeAuthActions,
+  visibleRuntimeAuthActions,
+} from "./runtimeAuthActions";
 
 /** Link label for the row's install-instructions URL. Distinct from the
  * catalog's `installLinkLabel` — rows spell out what the guide covers
@@ -365,14 +369,12 @@ export function HarnessRow({
     });
   }
 
-  const canConnectAccount =
-    runtime.availability === "available" &&
-    runtime.authStatus.status === "logged_out";
+  const shouldDiscoverAuthActions = shouldDiscoverRuntimeAuthActions(runtime);
   const authMethodsQuery = useAcpAuthMethodsQuery(runtime.id, {
-    enabled: canConnectAccount,
+    enabled: shouldDiscoverAuthActions,
   });
-  const authMethods = canConnectAccount
-    ? (authMethodsQuery.data?.methods ?? [])
+  const authMethods = shouldDiscoverAuthActions
+    ? visibleRuntimeAuthActions(runtime.id, authMethodsQuery.data?.methods ?? [])
     : [];
   const connectMutation = useConnectAcpRuntimeMutation();
   const connectionError = connectMutation.error
@@ -492,13 +494,13 @@ export function HarnessRow({
             {connectionError}
           </p>
         ) : null}
-        {canConnectAccount && terminalLaunchMethodId ? (
+        {shouldDiscoverAuthActions && terminalLaunchMethodId ? (
           <p
             className="mt-2 rounded-lg border border-border/60 bg-background/60 px-3 py-1.5 text-sm text-muted-foreground"
             data-testid={`doctor-runtime-terminal-guidance-${runtime.id}`}
           >
-            Finish signing in from the Terminal window, then click Check again
-            to re-check {runtime.label}.
+            Finish setup in the Terminal window, then click Check again to
+            re-check {runtime.label}.
           </p>
         ) : null}
         {confirmingDelete ? (
