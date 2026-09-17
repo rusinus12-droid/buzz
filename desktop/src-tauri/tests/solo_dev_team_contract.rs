@@ -1,5 +1,17 @@
 const TEAMS_SOURCE: &str = include_str!("../src/managed_agents/teams.rs");
 const SOLO_DEV_SOURCE: &str = include_str!("../src/managed_agents/solo_dev.rs");
+const CATALOG_SOURCE: &str = include_str!("../src/managed_agents/discovery/catalog.rs");
+
+fn runtime_block<'a>(source: &'a str, id: &str) -> Option<&'a str> {
+    let marker = format!("id: \"{id}\"");
+    let after = source.split_once(&marker)?.1;
+    Some(
+        after
+            .split("KnownAcpRuntime {")
+            .next()
+            .unwrap_or(after),
+    )
+}
 
 #[test]
 fn normal_team_load_bootstraps_solo_dev_extension() {
@@ -22,6 +34,22 @@ fn solo_dev_extension_owns_the_role_pair() {
     assert!(SOLO_DEV_SOURCE.contains("ARCHITECT_PERSONA_ID"));
     assert!(SOLO_DEV_SOURCE.contains("IMPLEMENTER_PERSONA_ID"));
     assert!(SOLO_DEV_SOURCE.contains("ensure_solo_dev_team_record"));
+    assert!(SOLO_DEV_SOURCE.contains("INITIAL_AGENT_MODE"));
+    assert!(SOLO_DEV_SOURCE.contains("BUZZ_ACP_EFFORT_LEVEL"));
+}
+
+#[test]
+fn codex_architect_model_is_projected_to_acp_session_startup() {
+    let codex = runtime_block(CATALOG_SOURCE, "codex")
+        .expect("Codex must be present in KNOWN_ACP_RUNTIMES");
+    assert!(
+        codex.contains("supports_acp_model_switching: true"),
+        "current codex-acp exposes stable model configOptions"
+    );
+    assert!(
+        codex.contains("model_env_var: Some(\"BUZZ_ACP_MODEL\")"),
+        "the Architect definition's selected Codex model must be applied after every session/new"
+    );
 }
 
 #[test]
