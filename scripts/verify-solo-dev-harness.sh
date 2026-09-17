@@ -14,7 +14,9 @@ cargo test \
   --test solo_dev_team_contract
 
 printf '\n==> Solo Dev team runtime guard\n'
-node --experimental-strip-types --test \
-  desktop/src/features/agents/lib/soloDevRuntimeGuard.test.mjs
+node \
+  --import ./desktop/test-loader.mjs \
+  --experimental-strip-types \
+  --test desktop/src/features/agents/lib/soloDevRuntimeGuard.test.mjs
 
 printf '\nSolo Dev harness contract checks passed.\n'
