@@ -9,6 +9,13 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Buzz pins its development toolchain through Hermit. Keep this script on the
+# same PATH/tool versions as the repository's normal contributor commands.
+if [[ -f "$ROOT/bin/activate-hermit" ]]; then
+  # shellcheck disable=SC1091
+  . "$ROOT/bin/activate-hermit"
+fi
+
 require_cmd() {
   local name="$1"
   if ! command -v "$name" >/dev/null 2>&1; then
