@@ -99,8 +99,12 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         cli_install_hint: "Buzz talks to Codex through the Codex CLI.",
         adapter_install_hint: "Buzz talks to the Codex CLI through an ACP adapter. Install it with: npm install -g @agentclientprotocol/codex-acp.",
         skill_dir: Some(".codex/skills"),
-        supports_acp_model_switching: false,
-        model_env_var: None,
+        // Current codex-acp advertises stable session configOptions for model
+        // selection. Persist the Architect definition's selected Codex model
+        // through BUZZ_ACP_MODEL so buzz-acp applies it immediately after each
+        // session/new (the same startup model authority used for Hermes below).
+        supports_acp_model_switching: true,
+        model_env_var: Some("BUZZ_ACP_MODEL"),
         provider_env_var: None,
         provider_locked: false,
         default_env: &[],
