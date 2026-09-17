@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use tauri::AppHandle;
 
-use super::{AcpSessionPolicy, AgentDefinition};
+use super::{AcpSessionPolicy, AgentDefinition, TeamRecord};
 
 pub(crate) const SOLO_DEV_TEAM_ID: &str = "builtin-team:solo-dev";
 pub(crate) const ARCHITECT_PERSONA_ID: &str = "solo-dev:architect";
@@ -98,6 +98,48 @@ pub(crate) fn ensure_solo_dev_personas<R: tauri::Runtime>(
     Ok(changed)
 }
 
+/// Add the fork-specific Solo Dev team to the normal mutable team load without
+/// changing upstream's `BUILT_IN_TEAMS` table. Keeping the extension at this
+/// seam avoids rewriting upstream tests and makes future rebases smaller.
+/// Existing user customizations are preserved; only a stale `is_builtin`
+/// marker is restored so the team cannot be deleted accidentally.
+pub(crate) fn ensure_solo_dev_team_record(records: &mut Vec<TeamRecord>, now: &str) -> bool {
+    if let Some(existing) = records.iter_mut().find(|team| team.id == SOLO_DEV_TEAM_ID) {
+        if existing.is_builtin {
+            return false;
+        }
+        existing.is_builtin = true;
+        existing.updated_at = now.to_string();
+        return true;
+    }
+
+    records.push(TeamRecord {
+        id: SOLO_DEV_TEAM_ID.to_string(),
+        name: "Solo Dev — Codex + Hermes".to_string(),
+        description: Some(
+            "Codex plans and reviews while Hermes implements and verifies in the same Buzz room."
+                .to_string(),
+        ),
+        // Shared instructions already live in both persona prompts so they also
+        // survive standalone persona use; do not inject the same text twice.
+        instructions: None,
+        persona_ids: vec![
+            ARCHITECT_PERSONA_ID.to_string(),
+            IMPLEMENTER_PERSONA_ID.to_string(),
+        ],
+        is_builtin: true,
+        shared: false,
+        catalog_source: None,
+        source_dir: None,
+        is_symlink: false,
+        symlink_target: None,
+        version: Some("0.1.0".to_string()),
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+    });
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,5 +179,52 @@ mod tests {
             assert!(record.system_prompt.contains("[REVIEW_FAIL]"));
             assert!(record.system_prompt.contains("[REVIEW_PASS]"));
         }
+    }
+
+    #[test]
+    fn team_seed_is_idempotent_and_preserves_customization() {
+        let mut teams = Vec::new();
+        assert!(ensure_solo_dev_team_record(
+            &mut teams,
+            "2026-09-17T00:00:00Z"
+        ));
+        assert_eq!(teams.len(), 1);
+        assert_eq!(teams[0].id, SOLO_DEV_TEAM_ID);
+        assert_eq!(
+            teams[0].persona_ids,
+            vec![
+                ARCHITECT_PERSONA_ID.to_string(),
+                IMPLEMENTER_PERSONA_ID.to_string()
+            ]
+        );
+        assert!(teams[0].is_builtin);
+
+        teams[0].name = "My Solo Dev Team".to_string();
+        teams[0].persona_ids = vec![ARCHITECT_PERSONA_ID.to_string()];
+        assert!(!ensure_solo_dev_team_record(
+            &mut teams,
+            "2026-09-18T00:00:00Z"
+        ));
+        assert_eq!(teams[0].name, "My Solo Dev Team");
+        assert_eq!(
+            teams[0].persona_ids,
+            vec![ARCHITECT_PERSONA_ID.to_string()]
+        );
+    }
+
+    #[test]
+    fn team_seed_repromotes_a_stale_marker_without_overwriting_fields() {
+        let mut teams = Vec::new();
+        ensure_solo_dev_team_record(&mut teams, "2026-09-17T00:00:00Z");
+        teams[0].is_builtin = false;
+        teams[0].name = "Customized".to_string();
+
+        assert!(ensure_solo_dev_team_record(
+            &mut teams,
+            "2026-09-18T00:00:00Z"
+        ));
+        assert!(teams[0].is_builtin);
+        assert_eq!(teams[0].name, "Customized");
+        assert_eq!(teams[0].updated_at, "2026-09-18T00:00:00Z");
     }
 }
