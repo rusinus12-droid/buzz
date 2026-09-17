@@ -32,6 +32,7 @@ fn solo_dev_pack_is_valid_and_routes_roles_to_expected_runtimes() {
     );
     assert!(architect.prompt.contains("[PLAN_READY]"));
     assert!(architect.prompt.contains(".agent-team/PLAN.md"));
+    assert!(architect.prompt.contains("REPOS/"));
 
     let implementer = loaded
         .personas
@@ -45,11 +46,14 @@ fn solo_dev_pack_is_valid_and_routes_roles_to_expected_runtimes() {
     );
     assert!(implementer.prompt.contains("[IMPLEMENTATION_READY]"));
     assert!(implementer.prompt.contains(".agent-team/VERIFICATION.md"));
+    assert!(implementer.prompt.contains("REPOS/"));
 
     let instructions = loaded
         .pack_instructions
         .as_deref()
         .expect("Solo Dev pack should carry shared instructions");
+    assert!(instructions.contains("reposDir"));
+    assert!(instructions.contains("<repo-root>/.agent-team/"));
     for marker in [
         "[PLAN_READY]",
         "[PLAN_BLOCKED]",
