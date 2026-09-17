@@ -31,25 +31,12 @@ struct BuiltInTeam {
     persona_ids: &'static [&'static str],
 }
 
-const BUILT_IN_TEAMS: &[BuiltInTeam] = &[
-    BuiltInTeam {
-        id: "builtin-team:welcome",
-        name: "Welcome Team",
-        description: Some("A friendly starter trio ready to help you plan, create, and ship."),
-        persona_ids: &["builtin:fizz", "builtin:honey", "builtin:bumble"],
-    },
-    BuiltInTeam {
-        id: super::solo_dev::SOLO_DEV_TEAM_ID,
-        name: "Solo Dev — Codex + Hermes",
-        description: Some(
-            "Codex plans and reviews while Hermes implements and verifies in the same Buzz room.",
-        ),
-        persona_ids: &[
-            super::solo_dev::ARCHITECT_PERSONA_ID,
-            super::solo_dev::IMPLEMENTER_PERSONA_ID,
-        ],
-    },
-];
+const BUILT_IN_TEAMS: &[BuiltInTeam] = &[BuiltInTeam {
+    id: "builtin-team:welcome",
+    name: "Welcome Team",
+    description: Some("A friendly starter trio ready to help you plan, create, and ship."),
+    persona_ids: &["builtin:fizz", "builtin:honey", "builtin:bumble"],
+}];
 
 // Built-in teams that have been retired. A stored copy that still exactly
 // matches its seed is purged on load (the user never touched it); customized
@@ -142,11 +129,14 @@ fn merge_teams_impl(
     }
 
     // Demote any stored team flagged as built-in whose id is no longer in
-    // built_ins (e.g. a built-in that has been retired). The record stays so
-    // existing references keep working; it becomes a user-owned custom team
-    // they can edit or delete.
+    // built_ins (e.g. a built-in that has been retired). The fork-provided Solo
+    // Dev team is deliberately seeded outside this upstream table, so preserve
+    // its built-in marker here and let `ensure_solo_dev_team_record` own it.
     for record in stored.iter_mut() {
-        if record.is_builtin && built_in_team_order(built_ins, &record.id).is_none() {
+        if record.is_builtin
+            && record.id != super::solo_dev::SOLO_DEV_TEAM_ID
+            && built_in_team_order(built_ins, &record.id).is_none()
+        {
             record.is_builtin = false;
             record.updated_at = now.to_string();
             changed = true;
@@ -190,9 +180,9 @@ pub(crate) fn load_teams_readonly(path: &std::path::Path) -> Result<Vec<TeamReco
 }
 
 pub fn load_teams<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<Vec<TeamRecord>, String> {
-    // The Solo Dev team is built into this fork, while its two definitions are
-    // intentionally kept out of upstream's enormous built-in persona table.
-    // Ensure those definitions exist before the built-in team is surfaced.
+    // The Solo Dev extension is fork-owned. Keep upstream's built-in team table
+    // unchanged, but ensure the two cooperative definitions exist before the
+    // team record is exposed through the normal mutable load path.
     super::solo_dev::ensure_solo_dev_personas(app)?;
 
     let path = teams_store_path(app)?;
@@ -207,7 +197,10 @@ pub fn load_teams<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<Vec<TeamRecor
         Vec::new()
     };
 
-    let (mut records, changed) = merge_teams(records, &now);
+    let (mut records, mut changed) = merge_teams(records, &now);
+    if super::solo_dev::ensure_solo_dev_team_record(&mut records, &now) {
+        changed = true;
+    }
     sort_teams(&mut records);
 
     if changed || !path.exists() {
@@ -348,7 +341,8 @@ pub fn delete_team_with_cascade(app: &AppHandle, team_id: &str) -> Result<Vec<St
         // Byte-snapshot both stores before writing so a save failure rolls
         // back both, via the same commit primitive as catalog adoption (I6).
         let personas_snap = crate::managed_agents::storage::snapshot_store(&personas_path)?;
-        let teams_snap = crate::managed_agents::storage::snapshot_store(&teams_path)?;
+        let teams_snap = teams_store_path(app)
+            .and_then(|path| crate::managed_agents::storage::snapshot_store(&path))?;
 
         crate::managed_agents::storage::commit_stores_with_snapshots(
             &personas_path,
