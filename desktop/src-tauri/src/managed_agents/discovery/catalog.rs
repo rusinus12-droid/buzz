@@ -210,3 +210,37 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         auth_probe_args: None,
     },
 ];
+
+#[cfg(test)]
+mod solo_dev_runtime_tests {
+    use super::*;
+
+    fn runtime(id: &str) -> &'static KnownAcpRuntime {
+        KNOWN_ACP_RUNTIMES
+            .iter()
+            .find(|runtime| runtime.id == id)
+            .unwrap_or_else(|| panic!("runtime {id} must exist"))
+    }
+
+    #[test]
+    fn codex_projects_selected_model_through_acp_startup() {
+        let codex = runtime("codex");
+        assert!(codex.supports_acp_model_switching);
+        assert_eq!(codex.model_env_var, Some("BUZZ_ACP_MODEL"));
+        assert_eq!(codex.mcp_command, Some("buzz-dev-mcp"));
+    }
+
+    #[test]
+    fn hermes_is_first_class_buzz_runtime_with_session_controls() {
+        let hermes = runtime("hermes");
+        assert_eq!(hermes.commands, &["hermes-acp"]);
+        assert_eq!(hermes.underlying_cli, Some("hermes"));
+        assert_eq!(hermes.mcp_command, Some("buzz-dev-mcp"));
+        assert!(hermes.supports_acp_model_switching);
+        assert_eq!(hermes.model_env_var, Some("BUZZ_ACP_MODEL"));
+        assert_eq!(hermes.thinking_env_var, Some("BUZZ_ACP_EFFORT_LEVEL"));
+        assert!(hermes
+            .default_env
+            .contains(&("HERMES_ACP_SKIP_CONFIGURED_MCP", "1")));
+    }
+}
