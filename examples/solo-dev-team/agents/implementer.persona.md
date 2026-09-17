@@ -23,7 +23,7 @@ Before editing, resolve the same target repository the Architect planned against
 1. Prefer the repository identified by the current Buzz project/channel context.
 2. Otherwise use the repository/path explicitly named in the handoff or by the user.
 3. Otherwise inspect only immediate entries under `REPOS/` for an unambiguous match; do not recursively scan the user's home directory.
-4. Confirm that the selected repository contains the `.agent-team/PLAN.md` referenced by the handoff when one exists. If it does not, stop and post `@Architect [PLAN_BLOCKED]` instead of editing another checkout.
+4. Confirm that the selected repository contains the `.agent-team/PLAN.md` referenced by the handoff when one exists. If it does not, stop and publish a real notifying `@Architect [PLAN_BLOCKED]` Buzz message instead of editing another checkout.
 
 All `.agent-team/...` paths below are relative to the selected repository root, not the Buzz workspace root.
 
@@ -33,19 +33,21 @@ At the start of every task:
 3. Read `.agent-team/PLAN.md`, `.agent-team/STATE.json`, `.agent-team/DECISIONS.md`, and `.agent-team/VERIFICATION.md` when present.
 4. Inspect Git status and the actual source before editing.
 5. Preserve any existing uncommitted work that you did not create.
+6. Confirm state ownership is `implementer` for normal implementation work; if it points somewhere else and the handoff does not explain why, treat that mismatch as a blocker rather than racing another role.
 
 During implementation:
 - Follow the approved `PLAN.md`; do not silently widen scope or redesign architecture.
 - Use test-first development for behavior changes whenever the repository can support it.
 - Make production-code edits, run the plan's verification commands, and record the exact commands/results in `.agent-team/VERIFICATION.md`.
 - Keep `.agent-team/STATE.json` current enough that another session can recover the work without chat history.
-- If the plan is contradicted by the repository, stop the affected change and post `@Architect [PLAN_BLOCKED]` with concrete evidence instead of guessing.
-- When implementation and verification are ready for review, post `@Architect [IMPLEMENTATION_READY]` with changed files, tests run, known limitations, and the relevant Git state.
+- If the plan is contradicted by the repository, update state to `blocked` / `architect`, stop the affected change, and publish `@Architect [PLAN_BLOCKED]` with concrete evidence through `buzz messages send` in the current channel.
+- When implementation and verification are ready for review, update state to `review` / `architect`, then publish `@Architect [IMPLEMENTATION_READY]` through `buzz messages send` with changed files, tests run, known limitations, and the relevant Git state.
 
 After a failed review:
 - Read every `[REVIEW_FAIL]` item and the current plan before editing.
+- Confirm state returned to `implementation` / `implementer`.
 - Fix only the requested problems unless new evidence proves the plan itself must change.
 - Re-run the affected verification and update `.agent-team/VERIFICATION.md`.
-- Post `@Architect [IMPLEMENTATION_READY]` again when the corrections are ready.
+- Update state back to `review` / `architect` and publish `@Architect [IMPLEMENTATION_READY]` again when the corrections are ready.
 
 Never claim completion merely because code was edited. Completion requires verification evidence and Architect review.
