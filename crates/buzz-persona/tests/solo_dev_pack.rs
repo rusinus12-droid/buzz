@@ -54,6 +54,8 @@ fn solo_dev_pack_is_valid_and_routes_roles_to_expected_runtimes() {
         .expect("Solo Dev pack should carry shared instructions");
     assert!(instructions.contains("reposDir"));
     assert!(instructions.contains("<repo-root>/.agent-team/"));
+    assert!(instructions.contains("buzz messages send"));
+    assert!(instructions.contains("mention_pubkeys"));
     for marker in [
         "[PLAN_READY]",
         "[PLAN_BLOCKED]",
