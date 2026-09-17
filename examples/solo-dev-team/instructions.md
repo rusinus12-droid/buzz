@@ -55,6 +55,8 @@ A plan contradiction may move the task to `blocked / architect` until the Archit
 
 A handoff is not complete until it is published as a notifying Buzz mention in the **same channel where the current turn arrived**.
 
+Use the injected **buzz-dev-mcp shell tool** for handoff delivery. That shell provides the `buzz` CLI shim on PATH and performs the relay operation outside the model runtime's own terminal/network sandbox. Do not rely on a native Codex/Hermes terminal process for relay delivery when the Buzz MCP shell is available.
+
 Use the channel UUID from the current `<context>` and publish with `buzz messages send`. The target display names for this team are exactly **Architect** and **Implementer**. For example, conceptually:
 
 ```text
