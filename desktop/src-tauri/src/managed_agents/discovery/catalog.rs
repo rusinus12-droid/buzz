@@ -126,7 +126,10 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         id: "hermes",
         label: "Hermes Agent",
         commands: &["hermes-acp"],
-        aliases: &["hermes"],
+        // Do not classify bare `hermes` as an ACP command. Its normal entrypoint
+        // launches the interactive CLI unless `acp` is supplied explicitly.
+        // `underlying_cli` below is sufficient for partial-install detection.
+        aliases: &[],
         avatar_url: "",
         // Hermes publishes its room replies through the Buzz developer MCP.
         // Keeping this on the first-class runtime fixes preset sessions that
@@ -203,7 +206,7 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         effort_normalization: None, // buzz-agent: per-model catalog; see getProviderEffortConfig() in TS
         effort_accepted_values: Some(BUZZ_AGENT_EFFORT_VALUES), // buzz-agent: parse_thinking_effort's accepted set
         max_tokens_env_var: Some("BUZZ_AGENT_MAX_OUTPUT_TOKENS"),
-        context_limit_env_var: Some("BUZZ_AGENT_MAX_CONTEXT_TOKENS"),
+        context_limit_env_var: Some("BUZZ_AGENT_CONTEXT_LIMIT"),
         max_rounds_env_var: Some("BUZZ_AGENT_MAX_ROUNDS"),
         required_normalized_fields: &["model", "provider"],
         login_hint: None,
@@ -234,6 +237,7 @@ mod solo_dev_runtime_tests {
     fn hermes_is_first_class_buzz_runtime_with_session_controls() {
         let hermes = runtime("hermes");
         assert_eq!(hermes.commands, &["hermes-acp"]);
+        assert!(hermes.aliases.is_empty());
         assert_eq!(hermes.underlying_cli, Some("hermes"));
         assert_eq!(hermes.mcp_command, Some("buzz-dev-mcp"));
         assert!(hermes.supports_acp_model_switching);
