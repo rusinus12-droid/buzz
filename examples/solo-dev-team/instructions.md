@@ -38,9 +38,20 @@ Authority order:
 
 If they disagree, investigate and reconcile them. Never overwrite reality with a stale status document.
 
-## Handoff markers
+## Handoffs are real Buzz messages
 
-Use these markers at the beginning of a handoff message so the next role can react consistently:
+A handoff is not complete until it is published as a notifying Buzz mention in the **same channel where the current turn arrived**.
+
+Use the channel UUID from the current `<context>` and publish with `buzz messages send`. The target display names for this team are exactly **Architect** and **Implementer**. For example, conceptually:
+
+```text
+buzz messages send --channel <current-channel-uuid> --content "@Implementer [PLAN_READY] ..."
+buzz messages send --channel <current-channel-uuid> --content "@Architect [IMPLEMENTATION_READY] ..."
+```
+
+Follow the Buzz base-prompt mention rules rather than copying those examples blindly: when a teammate pubkey is already known, pass it with `--mention`; otherwise exact member-name resolution may be used. A successful handoff should have the intended recipient in the command result's `mention_pubkeys`. Do not treat a plain final response containing `@Name` as proof that the teammate was notified.
+
+Use these markers at the beginning of the handoff content so the receiving role can react consistently:
 
 - `@Implementer [PLAN_READY]` — Architect has a plan ready for implementation.
 - `@Architect [PLAN_BLOCKED]` — Implementer found evidence that invalidates or blocks the plan.
@@ -48,7 +59,7 @@ Use these markers at the beginning of a handoff message so the next role can rea
 - `@Implementer [REVIEW_FAIL]` — review found concrete corrections to make.
 - `@Implementer [REVIEW_PASS]` — implementation satisfies the current plan.
 
-A handoff message is a summary, not the source of truth. The receiving agent must read the repository state before acting.
+A handoff message is a summary, not the source of truth. The receiving agent must read the repository state before acting. Do not send a separate acknowledgement-only mention; the callback should carry actual work, a blocker, or a review result.
 
 ## Safety and concurrency
 
@@ -65,5 +76,5 @@ A task is complete only when:
 
 1. The current plan's acceptance criteria are satisfied.
 2. Fresh verification evidence is recorded.
-3. The Architect has reviewed the actual diff and posted `[REVIEW_PASS]`.
+3. The Architect has reviewed the actual diff and published `[REVIEW_PASS]`.
 4. `.agent-team/STATE.json` reflects a completed/verified phase.
