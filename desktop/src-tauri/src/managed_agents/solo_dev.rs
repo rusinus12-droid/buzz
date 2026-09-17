@@ -32,9 +32,11 @@ fn definition_from_persona_md(
 
     let mut env_vars = BTreeMap::new();
     if id == ARCHITECT_PERSONA_ID {
-        // codex-acp officially supports INITIAL_AGENT_MODE. Keep the planning
-        // role in read-only mode at the runtime boundary, not merely by prompt,
-        // so production source writes remain the Implementer's responsibility.
+        // codex-acp's `read-only` mode is its conservative "Ask for approval"
+        // preset: network is disabled and its sandbox remains workspace-write.
+        // It intentionally still permits repository-local coordination files
+        // such as `.agent-team/PLAN.md`; production-source ownership is enforced
+        // by the Architect/Implementer protocol rather than an immutable FS.
         env_vars.insert("INITIAL_AGENT_MODE".to_string(), "read-only".to_string());
     } else if id == IMPLEMENTER_PERSONA_ID {
         // buzz-acp applies this spawn-scoped effort to the adapter's advertised
