@@ -1,4 +1,5 @@
 export const SOLO_DEV_TEAM_ID = "builtin-team:solo-dev";
+export const UNCONFIGURED_RUNTIME_ID = "<unconfigured>";
 
 type PersonaRuntimeRef = {
   runtime?: string | null;
@@ -32,16 +33,18 @@ export function getSoloDevRuntimeGuard(
   const availableIds = new Set(runtimes.map((runtime) => runtime.id));
   const requiredIds = Array.from(
     new Set(
-      personas
-        .map((persona) => persona.runtime?.trim() ?? "")
-        .filter((runtimeId) => runtimeId.length > 0),
+      personas.map((persona) => {
+        const runtimeId = persona.runtime?.trim() ?? "";
+        return runtimeId.length > 0 ? runtimeId : UNCONFIGURED_RUNTIME_ID;
+      }),
     ),
   );
 
   return {
     strict: true,
     missingRuntimeIds: requiredIds.filter(
-      (runtimeId) => !availableIds.has(runtimeId),
+      (runtimeId) =>
+        runtimeId === UNCONFIGURED_RUNTIME_ID || !availableIds.has(runtimeId),
     ),
   };
 }
