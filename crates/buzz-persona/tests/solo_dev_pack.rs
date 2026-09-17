@@ -33,6 +33,8 @@ fn solo_dev_pack_is_valid_and_routes_roles_to_expected_runtimes() {
     assert!(architect.prompt.contains("[PLAN_READY]"));
     assert!(architect.prompt.contains(".agent-team/PLAN.md"));
     assert!(architect.prompt.contains("REPOS/"));
+    assert!(architect.prompt.contains("complete` / `none"));
+    assert!(architect.prompt.contains("without mentioning Implementer"));
 
     let implementer = loaded
         .personas
@@ -47,6 +49,7 @@ fn solo_dev_pack_is_valid_and_routes_roles_to_expected_runtimes() {
     assert!(implementer.prompt.contains("[IMPLEMENTATION_READY]"));
     assert!(implementer.prompt.contains(".agent-team/VERIFICATION.md"));
     assert!(implementer.prompt.contains("REPOS/"));
+    assert!(implementer.prompt.contains("review` / `architect"));
 
     let instructions = loaded
         .pack_instructions
@@ -56,6 +59,10 @@ fn solo_dev_pack_is_valid_and_routes_roles_to_expected_runtimes() {
     assert!(instructions.contains("<repo-root>/.agent-team/"));
     assert!(instructions.contains("buzz messages send"));
     assert!(instructions.contains("mention_pubkeys"));
+    assert!(instructions.contains("planning / architect"));
+    assert!(instructions.contains("implementation / implementer"));
+    assert!(instructions.contains("complete / none"));
+    assert!(instructions.contains("without mentioning Implementer"));
     for marker in [
         "[PLAN_READY]",
         "[PLAN_BLOCKED]",
