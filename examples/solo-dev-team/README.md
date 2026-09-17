@@ -11,23 +11,23 @@ The pack deliberately does **not** hard-code model IDs. Pick the current Codex m
 
 Buzz projects each role's selected model through `BUZZ_ACP_MODEL`. `buzz-acp` applies that model immediately after every new ACP session is created. This makes the Architect's selected Codex model and the Implementer's provider-qualified Hermes model (for example `ollama-cloud:<model>`) sticky per managed agent without changing either CLI's global default.
 
-## One-time setup in Buzz
+## One-time setup
 
-1. In **Settings → Runtimes**, make sure Codex and Hermes are available.
+1. Make sure Codex and Hermes are installed and configured on the Mac.
    - Codex uses the normal Codex CLI login/ChatGPT subscription credential store.
    - Hermes uses the normal Hermes installation and ACP launcher (`hermes-acp`).
-   - Hermes ACP reuses `~/.hermes` credentials/config. Ollama Cloud therefore needs credentials/configuration once; after that Buzz can discover its models over ACP.
-   - This fork keeps Hermes ACP's **Configure Hermes provider** terminal setup action visible in the Hermes runtime menu even when Buzz otherwise considers auth “not applicable.” Starting that action from Buzz launches the adapter-provided setup wizard; after it finishes, use **Check again** and select the Ollama Cloud model from Buzz. Day-to-day Hermes launches no longer need a separate terminal command.
-2. Configure the active Community's **repos directory** to the parent folder that already contains your local source checkouts (for example `/Users/you/Projects`). Buzz exposes it to managed agents as `REPOS/` without copying the repositories.
-3. In **Agents**, edit the seeded **Architect** and **Implementer** definitions to pin the models you want.
+   - Hermes ACP reuses `~/.hermes` credentials/config. Configure Ollama Cloud once with the normal Hermes setup/model flow if it is not already configured; after that Buzz discovers the authenticated models over ACP and day-to-day work no longer needs a separate Hermes launch command.
+2. In **Settings → Runtimes**, confirm Codex and Hermes are available.
+3. Configure the active Community's **repos directory** to the parent folder that already contains your local source checkouts (for example `/Users/you/Projects`). Buzz exposes it to managed agents as `REPOS/` without copying the repositories.
+4. In **Agents**, edit the seeded **Architect** and **Implementer** definitions to pin the models you want.
    - Architect keeps runtime `codex` and can be pinned to the desired Codex model (for this workflow, Astra). `INITIAL_AGENT_MODE=read-only` selects Codex ACP's conservative approval/network posture, but the sandbox is still workspace-write so the Architect can create `.agent-team` files. The team protocol—not filesystem immutability—keeps normal production-code edits assigned to Implementer.
    - Implementer keeps runtime `hermes`; Hermes ACP model discovery can surface configured Ollama Cloud models in the normal Buzz model picker.
    - Implementer starts at `high` reasoning effort. Raise it to `max` from the managed-agent Thinking effort control for unusually hard fixes; the effort is applied at ACP session creation.
-4. Deploy **Solo Dev — Codex + Hermes** to the project/channel where you want the pair to work.
+5. Deploy **Solo Dev — Codex + Hermes** to the project/channel where you want the pair to work.
    - Solo Dev intentionally disables Buzz's normal missing-runtime fallback. If either role's configured runtime is unavailable (or unset), deployment is blocked instead of silently replacing that role with another runtime.
    - This protects the core contract: Architect stays Codex and Implementer stays Hermes unless you explicitly edit their definitions.
 
-After this, day-to-day work stays in Buzz. You should not need to launch a separate Hermes terminal session merely to participate in the team.
+After the one-time CLI/provider authentication is in place, day-to-day work stays in Buzz. You should not need to launch a separate Hermes terminal session merely to participate in the team.
 
 ## Normal flow
 
