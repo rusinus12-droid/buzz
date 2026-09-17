@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   getSoloDevRuntimeGuard,
   SOLO_DEV_TEAM_ID,
+  UNCONFIGURED_RUNTIME_ID,
 } from "./soloDevRuntimeGuard.ts";
 
 test("ordinary teams keep generic runtime fallback behavior", () => {
@@ -39,12 +40,15 @@ test("Solo Dev is deployable when both requested runtimes are available", () => 
   assert.deepEqual(guard, { strict: true, missingRuntimeIds: [] });
 });
 
-test("Solo Dev deduplicates repeated missing runtime ids", () => {
+test("Solo Dev blocks blank runtime configuration and deduplicates ids", () => {
   const guard = getSoloDevRuntimeGuard(
     SOLO_DEV_TEAM_ID,
     [{ runtime: "hermes" }, { runtime: "hermes" }, { runtime: null }],
     [],
   );
 
-  assert.deepEqual(guard.missingRuntimeIds, ["hermes"]);
+  assert.deepEqual(guard.missingRuntimeIds, [
+    "hermes",
+    UNCONFIGURED_RUNTIME_ID,
+  ]);
 });
