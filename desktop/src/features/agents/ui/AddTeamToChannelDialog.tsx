@@ -156,54 +156,51 @@ export function AddTeamToChannelDialog({
       return;
     }
 
-    try {
-      const inputs = resolved.map((persona) => {
-        let runtimeToUse;
-        if (soloDevRuntimeGuard.strict) {
-          const runtimeId = persona.runtime?.trim() ?? "";
-          runtimeToUse =
-            runtimes.find((runtime) => runtime.id === runtimeId) ?? null;
-          if (!runtimeToUse) {
-            throw new Error(
-              `Solo Dev runtime ${runtimeId || "(unconfigured)"} is unavailable. Configure the requested runtime before deploying this team.`,
-            );
-          }
-        } else {
-          // Generic teams retain the upstream fallback behavior.
-          const { runtime: personaRuntime } = resolvePersonaRuntime(
+    const inputs = [];
+    for (const persona of resolved) {
+      const runtimeToUse = soloDevRuntimeGuard.strict
+        ? (runtimes.find(
+            (runtime) => runtime.id === (persona.runtime?.trim() ?? ""),
+          ) ?? null)
+        : (resolvePersonaRuntime(
             persona.runtime,
             runtimes,
             defaultProvider,
-          );
-          runtimeToUse = personaRuntime ?? defaultProvider;
-        }
+          ).runtime ?? defaultProvider);
 
-        return {
-          runtime: {
-            id: runtimeToUse.id,
-            label: runtimeToUse.label,
-            command: runtimeToUse.command,
-            defaultArgs: runtimeToUse.defaultArgs,
-            mcpCommand: runtimeToUse.mcpCommand,
-          },
-          name: persona.displayName,
-          systemPrompt: persona.systemPrompt,
-          avatarUrl: persona.avatarUrl ?? undefined,
-          model: persona.model ?? undefined,
-          personaId: persona.id,
-          teamId: team.id,
-          // One persona can be deployed under multiple teams with different instructions.
-          forceNewInstance: true,
-          role,
-        };
+      // The strict preflight normally makes this unreachable. Keep the actual
+      // deployment boundary fail-closed as well: if catalog state changed
+      // between render and click, do not silently substitute another runtime.
+      if (!runtimeToUse) {
+        return;
+      }
+
+      inputs.push({
+        runtime: {
+          id: runtimeToUse.id,
+          label: runtimeToUse.label,
+          command: runtimeToUse.command,
+          defaultArgs: runtimeToUse.defaultArgs,
+          mcpCommand: runtimeToUse.mcpCommand,
+        },
+        name: persona.displayName,
+        systemPrompt: persona.systemPrompt,
+        avatarUrl: persona.avatarUrl ?? undefined,
+        model: persona.model ?? undefined,
+        personaId: persona.id,
+        teamId: team.id,
+        // One persona can be deployed under multiple teams with different instructions.
+        forceNewInstance: true,
+        role,
       });
+    }
 
+    try {
       const result = await deployMutation.mutateAsync(inputs);
       onDeployed(selectedChannel, result);
       handleOpenChange(false);
     } catch {
-      // React Query stores mutation errors; local strict-runtime errors are
-      // already prevented by the preflight guard above.
+      // React Query stores mutation errors; keep the dialog open.
     }
   }
 
