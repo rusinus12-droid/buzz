@@ -4,6 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Match Buzz contributor/CI tool versions when this runs on the target Mac.
+if [[ -f "$ROOT/bin/activate-hermit" ]]; then
+  # shellcheck disable=SC1091
+  . "$ROOT/bin/activate-hermit"
+fi
+
 printf '\n==> Solo Dev persona pack\n'
 cargo test -p buzz-persona --test solo_dev_pack
 
