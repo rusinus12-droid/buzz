@@ -156,10 +156,11 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         config_file_path: None,
         config_file_format: None,
         supports_acp_native_config: false,
-        // Hermes receives the generic ACP effort tier; buzz-acp applies it at
-        // ACP session startup and Hermes' provider adapter performs the final
-        // provider-specific effort mapping.
-        thinking_env_var: None,
+        // Hermes exposes thought-level through ACP. Treat the generic Buzz ACP
+        // startup sentinel as this runtime's native effort key so persona/global
+        // effort tiers participate in the normal projection. buzz-acp then
+        // applies the resolved value once when each Hermes session is created.
+        thinking_env_var: Some("BUZZ_ACP_EFFORT_LEVEL"),
         effort_normalization: None,
         effort_accepted_values: None,
         max_tokens_env_var: None,
