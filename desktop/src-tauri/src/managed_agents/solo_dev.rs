@@ -38,12 +38,6 @@ fn definition_from_persona_md(
         // such as `.agent-team/PLAN.md`; production-source ownership is enforced
         // by the Architect/Implementer protocol rather than an immutable FS.
         env_vars.insert("INITIAL_AGENT_MODE".to_string(), "read-only".to_string());
-    } else if id == IMPLEMENTER_PERSONA_ID {
-        // buzz-acp applies this spawn-scoped effort to the adapter's advertised
-        // thought-level control when each ACP session is created. High is the
-        // Solo Dev worker default; the user can raise/lower it in Buzz without
-        // changing Hermes' global configuration.
-        env_vars.insert("BUZZ_ACP_EFFORT_LEVEL".to_string(), "high".to_string());
     }
 
     Ok(AgentDefinition {
@@ -253,13 +247,7 @@ mod tests {
         assert!(implementer.provider.is_none());
         assert_eq!(implementer.respond_to.as_deref(), Some("owner-only"));
         assert!(!implementer.env_vars.contains_key("INITIAL_AGENT_MODE"));
-        assert_eq!(
-            implementer
-                .env_vars
-                .get("BUZZ_ACP_EFFORT_LEVEL")
-                .map(String::as_str),
-            Some("high")
-        );
+        assert!(!implementer.env_vars.contains_key("BUZZ_ACP_EFFORT_LEVEL"));
         assert!(implementer.system_prompt.contains("[IMPLEMENTATION_READY]"));
     }
 
