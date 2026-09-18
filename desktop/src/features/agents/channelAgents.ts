@@ -2,6 +2,7 @@ import {
   commandsMatch,
   findReusableGenericAgent,
   findReusablePersonaAgent,
+  findReusableTeamPersonaAgent,
   pickPreferredManagedAgent,
   resolveReusableAgentAccessPolicy,
 } from "@/features/agents/agentReuse";
@@ -334,11 +335,18 @@ export async function provisionChannelManagedAgent(
     context?.managedAgents &&
     context.channelMemberPubkeys
   ) {
-    const reusable = findReusablePersonaAgent(
-      context.managedAgents,
-      input.personaId,
-      context.channelMemberPubkeys,
-    );
+    const reusable = input.teamId
+      ? findReusableTeamPersonaAgent(
+          context.managedAgents,
+          input.personaId,
+          input.teamId,
+          context.channelMemberPubkeys,
+        )
+      : findReusablePersonaAgent(
+          context.managedAgents,
+          input.personaId,
+          context.channelMemberPubkeys,
+        );
     if (reusable) {
       const definition = context.personas.find(
         (persona) => persona.id === input.personaId,
