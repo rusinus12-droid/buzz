@@ -6,7 +6,10 @@ import {
   useCreateChannelManagedAgentsMutation,
 } from "@/features/agents/hooks";
 import { useGlobalAgentConfig } from "@/features/agents/useGlobalAgentConfig";
-import type { CreateChannelManagedAgentsResult } from "@/features/agents/channelAgents";
+import type {
+  CreateChannelManagedAgentInput,
+  CreateChannelManagedAgentsResult,
+} from "@/features/agents/channelAgents";
 import {
   emptyResolvedTeamPersonas,
   resolveTeamPersonas,
@@ -16,6 +19,7 @@ import {
   getDefaultPersonaRuntime,
   resolvePersonaRuntime,
 } from "@/features/agents/lib/resolvePersonaRuntime";
+import { getSoloDevRuntimeGuard } from "@/features/agents/lib/soloDevRuntimeGuard";
 import { useChannelsQuery } from "@/features/channels/hooks";
 import { ProfileAvatar } from "@/features/profile/ui/ProfileAvatar";
 import type {
@@ -56,6 +60,9 @@ export function AddTeamToChannelDialog({
   const providersQuery = useAvailableAcpRuntimes();
   const [channelId, setChannelId] = React.useState("");
   const [role, setRole] = React.useState<Exclude<ChannelRole, "owner">>("bot");
+  const [soloDevDeployError, setSoloDevDeployError] = React.useState<
+    string | null
+  >(null);
   const deployMutation = useCreateChannelManagedAgentsMutation(
     channelId || null,
   );
@@ -69,8 +76,8 @@ export function AddTeamToChannelDialog({
   );
 
   const runtimes = providersQuery.data ?? [];
-  // Use the buzz-agent-first preference so the team-deploy fallback mirrors the
-  // single-agent start path (buzz-agent → goose → first available).
+  // Use the buzz-agent-first preference so ordinary team-deploy fallback
+  // mirrors the single-agent start path (buzz-agent → goose → first available).
   const defaultProvider = getDefaultPersonaRuntime(
     runtimes,
     globalConfig.preferred_runtime,
@@ -84,17 +91,51 @@ export function AddTeamToChannelDialog({
   const resolved = teamPersonaResolution.resolvedPersonas;
   const missingPersonaCount = teamPersonaResolution.missingPersonaCount;
 
-  // Surface warnings when a persona's preferred runtime is unavailable.
-  // This dialog has no runtime selector, so the fallback is always
-  // `defaultProvider` (the first available runtime).
+  // Generic teams keep Buzz's normal fallback behavior. Solo Dev is different:
+  // its architecture depends on heterogeneous runtimes (Codex architect +
+  // Hermes implementer), so silently replacing a missing runtime with the
+  // default would collapse the role boundary and invalidate the harness.
+  const soloDevRuntimeGuard = React.useMemo(
+    () => getSoloDevRuntimeGuard(team?.id, resolved, runtimes),
+    [team?.id, resolved, runtimes],
+  );
+  const soloDevRuntimeBlocked =
+    soloDevRuntimeGuard.strict &&
+    (soloDevRuntimeGuard.missingRuntimeIds.length > 0 ||
+      soloDevRuntimeGuard.roleContractErrors.length > 0);
+  const soloDevRuntimeError = React.useMemo(() => {
+    if (!soloDevRuntimeBlocked) {
+      return null;
+    }
+
+    const problems = [...soloDevRuntimeGuard.roleContractErrors];
+    if (soloDevRuntimeGuard.missingRuntimeIds.length > 0) {
+      problems.push(
+        `Missing required runtimes: ${soloDevRuntimeGuard.missingRuntimeIds.join(", ")}.`,
+      );
+    }
+
+    return `${problems.join(" ")} Runtime fallback is disabled for this team so Architect and Implementer cannot silently collapse onto the same runtime.`;
+  }, [
+    soloDevRuntimeBlocked,
+    soloDevRuntimeGuard.missingRuntimeIds,
+    soloDevRuntimeGuard.roleContractErrors,
+  ]);
+
+  // Surface normal fallback warnings only for generic teams. Solo Dev renders a
+  // blocking error above instead of a warning because fallback is forbidden.
   const runtimeWarnings = React.useMemo(
-    () => collectRuntimeWarnings(resolved, runtimes, defaultProvider),
-    [resolved, runtimes, defaultProvider],
+    () =>
+      soloDevRuntimeGuard.strict
+        ? []
+        : collectRuntimeWarnings(resolved, runtimes, defaultProvider),
+    [resolved, runtimes, defaultProvider, soloDevRuntimeGuard.strict],
   );
 
   function reset() {
     setChannelId("");
     setRole("bot");
+    setSoloDevDeployError(null);
     deployMutation.reset();
   }
 
@@ -118,47 +159,74 @@ export function AddTeamToChannelDialog({
     channels.find((channel) => channel.id === channelId) ?? null;
 
   async function handleDeploy() {
-    if (!team || !selectedChannel || !defaultProvider) {
+    if (
+      !team ||
+      !selectedChannel ||
+      !defaultProvider ||
+      soloDevRuntimeBlocked
+    ) {
       return;
     }
 
-    try {
-      // Resolve each persona's preferred runtime. This dialog has no
-      // runtime selector, so the fallback is `defaultProvider` (first
-      // available runtime). Warnings are computed separately via the
-      // `runtimeWarnings` memo and rendered as inline alerts above.
-      const inputs = resolved.map((persona) => {
-        const { runtime: personaRuntime } = resolvePersonaRuntime(
-          persona.runtime,
-          runtimes,
-          defaultProvider,
-        );
-        const runtimeToUse = personaRuntime ?? defaultProvider;
-        return {
-          runtime: {
-            id: runtimeToUse.id,
-            label: runtimeToUse.label,
-            command: runtimeToUse.command,
-            defaultArgs: runtimeToUse.defaultArgs,
-            mcpCommand: runtimeToUse.mcpCommand,
-          },
-          name: persona.displayName,
-          systemPrompt: persona.systemPrompt,
-          avatarUrl: persona.avatarUrl ?? undefined,
-          model: persona.model ?? undefined,
-          personaId: persona.id,
-          teamId: team.id,
-          // One persona can be deployed under multiple teams with different instructions.
-          forceNewInstance: true,
-          role,
-        };
-      });
+    const inputs: CreateChannelManagedAgentInput[] = [];
+    for (const persona of resolved) {
+      const runtimeToUse = soloDevRuntimeGuard.strict
+        ? (runtimes.find(
+            (runtime) => runtime.id === (persona.runtime?.trim() ?? ""),
+          ) ?? null)
+        : (resolvePersonaRuntime(
+            persona.runtime,
+            runtimes,
+            defaultProvider,
+          ).runtime ?? defaultProvider);
 
+      // The strict preflight normally makes this unreachable. Keep the actual
+      // deployment boundary fail-closed as well: if catalog state changed
+      // between render and click, do not silently substitute another runtime.
+      if (!runtimeToUse) {
+        return;
+      }
+
+      inputs.push({
+        runtime: {
+          id: runtimeToUse.id,
+          label: runtimeToUse.label,
+          command: runtimeToUse.command,
+          defaultArgs: runtimeToUse.defaultArgs,
+          mcpCommand: runtimeToUse.mcpCommand,
+        },
+        name: persona.displayName,
+        systemPrompt: persona.systemPrompt,
+        avatarUrl: persona.avatarUrl ?? undefined,
+        model: persona.model ?? undefined,
+        personaId: persona.id,
+        teamId: team.id,
+        // Generic teams keep the upstream "fresh copy per deploy" behavior.
+        // Solo Dev reuses the same team-bound persona instance so deploying it
+        // twice to one channel cannot create duplicate Architect/Implementer
+        // names and break exact @mention handoffs.
+        forceNewInstance: !soloDevRuntimeGuard.strict,
+        role,
+      });
+    }
+
+    try {
+      setSoloDevDeployError(null);
       const result = await deployMutation.mutateAsync(inputs);
+      if (soloDevRuntimeGuard.strict && result.failures.length > 0) {
+        const details = result.failures
+          .map((failure) => `${failure.name}: ${failure.error}`)
+          .join(" · ");
+        setSoloDevDeployError(
+          `Solo Dev deployment is incomplete. ${details} Retry Deploy after fixing the runtime issue; already-created Solo Dev roles will be reused instead of duplicated.`,
+        );
+        return;
+      }
+
       onDeployed(selectedChannel, result);
       handleOpenChange(false);
     } catch {
-      // React Query stores the error; keep the dialog open.
+      // React Query stores mutation errors; keep the dialog open.
     }
   }
 
@@ -263,6 +331,12 @@ export function AddTeamToChannelDialog({
               </p>
             ) : null}
 
+            {soloDevRuntimeError ? (
+              <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {soloDevRuntimeError}
+              </p>
+            ) : null}
+
             {runtimeWarnings.length > 0
               ? runtimeWarnings.map((warning) => (
                   <div
@@ -278,6 +352,12 @@ export function AddTeamToChannelDialog({
             {channelsQuery.error instanceof Error ? (
               <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {channelsQuery.error.message}
+              </p>
+            ) : null}
+
+            {soloDevDeployError ? (
+              <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {soloDevDeployError}
               </p>
             ) : null}
 
@@ -304,6 +384,7 @@ export function AddTeamToChannelDialog({
                 !defaultProvider ||
                 resolved.length === 0 ||
                 missingPersonaCount > 0 ||
+                soloDevRuntimeBlocked ||
                 channelsQuery.isLoading ||
                 providersQuery.isLoading ||
                 deployMutation.isPending

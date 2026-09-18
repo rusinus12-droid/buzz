@@ -15,9 +15,19 @@ import type {
 export const teamsQueryKey = ["teams"] as const;
 
 export function useTeamsQuery() {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: teamsQueryKey,
-    queryFn: listTeams,
+    queryFn: async () => {
+      const teams = await listTeams();
+      // The Solo Dev fork seeds its two editable persona definitions while
+      // loading teams. If personas were cached first, refresh that cache now so
+      // the just-seeded Architect/Implementer become visible in the same UI
+      // session instead of appearing as missing team members until restart.
+      await queryClient.invalidateQueries({ queryKey: ["personas"] });
+      return teams;
+    },
     staleTime: 30_000,
     // No refetchInterval: inbound relay team changes emit `agents-data-changed`
     // (handled by useAgentsDataRefresh). Same redundant-poll removal as

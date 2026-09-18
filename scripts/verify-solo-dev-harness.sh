@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+# Match Buzz contributor/CI tool versions when this runs on the target Mac.
+if [[ -f "$ROOT/bin/activate-hermit" ]]; then
+  # shellcheck disable=SC1091
+  . "$ROOT/bin/activate-hermit"
+fi
+
+printf '\n==> Solo Dev persona pack\n'
+cargo test -p buzz-persona --test solo_dev_pack
+
+printf '\n==> Solo Dev runtime/seed unit contracts\n'
+cargo test --manifest-path desktop/src-tauri/Cargo.toml solo_dev_runtime_tests
+cargo test --manifest-path desktop/src-tauri/Cargo.toml managed_agents::solo_dev::tests
+
+printf '\n==> Solo Dev desktop integration contracts\n'
+cargo test \
+  --manifest-path desktop/src-tauri/Cargo.toml \
+  --test hermes_buzz_mcp_contract \
+  --test solo_dev_team_contract
+
+printf '\n==> Solo Dev desktop TypeScript contracts\n'
+node \
+  --import ./desktop/test-loader.mjs \
+  --experimental-strip-types \
+  --test \
+  desktop/src/features/agents/lib/soloDevRuntimeGuard.test.mjs \
+  desktop/src/features/agents/lib/soloDevSeedRefresh.test.mjs
+
+printf '\nSolo Dev harness contract checks passed.\n'

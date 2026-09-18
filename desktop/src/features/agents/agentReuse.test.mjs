@@ -6,6 +6,7 @@ import {
   parseTimestamp,
   pickPreferredManagedAgent,
   findReusablePersonaAgent,
+  findReusableTeamPersonaAgent,
   findReusableGenericAgent,
   findReusableAgent,
   resolveReusableAgentAccessPolicy,
@@ -213,6 +214,61 @@ test("findReusablePersonaAgent: pubkey comparison is case-insensitive", () => {
   const agent = makeAgent({ personaId: "p1", pubkey: PUB_A.toUpperCase() });
   const channelMembers = new Set([PUB_A]);
   const result = findReusablePersonaAgent([agent], "p1", channelMembers);
+  assert.equal(result, undefined);
+});
+
+test("findReusableTeamPersonaAgent: prefers same-team instance already in channel", () => {
+  const inChannel = makeAgent({
+    id: "in",
+    personaId: "p1",
+    teamId: "team-a",
+    pubkey: PUB_A,
+    status: "stopped",
+  });
+  const elsewhere = makeAgent({
+    id: "out",
+    personaId: "p1",
+    teamId: "team-a",
+    pubkey: PUB_B,
+    status: "running",
+  });
+
+  const result = findReusableTeamPersonaAgent(
+    [elsewhere, inChannel],
+    "p1",
+    "team-a",
+    new Set([PUB_A]),
+  );
+  assert.equal(result, inChannel);
+});
+
+test("findReusableTeamPersonaAgent: reuses same team outside channel", () => {
+  const agent = makeAgent({
+    personaId: "p1",
+    teamId: "team-a",
+    pubkey: PUB_A,
+  });
+  const result = findReusableTeamPersonaAgent(
+    [agent],
+    "p1",
+    "team-a",
+    new Set([PUB_B]),
+  );
+  assert.equal(result, agent);
+});
+
+test("findReusableTeamPersonaAgent: never crosses team boundary", () => {
+  const otherTeam = makeAgent({
+    personaId: "p1",
+    teamId: "team-b",
+    pubkey: PUB_A,
+  });
+  const result = findReusableTeamPersonaAgent(
+    [otherTeam],
+    "p1",
+    "team-a",
+    new Set(),
+  );
   assert.equal(result, undefined);
 });
 

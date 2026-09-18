@@ -99,8 +99,12 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         cli_install_hint: "Buzz talks to Codex through the Codex CLI.",
         adapter_install_hint: "Buzz talks to the Codex CLI through an ACP adapter. Install it with: npm install -g @agentclientprotocol/codex-acp.",
         skill_dir: Some(".codex/skills"),
-        supports_acp_model_switching: false,
-        model_env_var: None,
+        // Current codex-acp advertises stable session configOptions for model
+        // selection. Persist the Architect definition's selected Codex model
+        // through BUZZ_ACP_MODEL so buzz-acp applies it immediately after each
+        // session/new (the same startup model authority used for Hermes below).
+        supports_acp_model_switching: true,
+        model_env_var: Some("BUZZ_ACP_MODEL"),
         provider_env_var: None,
         provider_locked: false,
         default_env: &[],
@@ -117,6 +121,61 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         login_hint: Some("Run `codex login` to authenticate."),
         // Verified: `codex login status` exits 0 when logged in, non-zero otherwise.
         auth_probe_args: Some(&["codex", "login", "status"]),
+    },
+    KnownAcpRuntime {
+        id: "hermes",
+        label: "Hermes Agent",
+        commands: &["hermes-acp"],
+        // Do not classify bare `hermes` as an ACP command. Its normal entrypoint
+        // launches the interactive CLI unless `acp` is supplied explicitly.
+        // `underlying_cli` below is sufficient for partial-install detection.
+        aliases: &[],
+        avatar_url: "",
+        // Hermes publishes its room replies through the Buzz developer MCP.
+        // Keeping this on the first-class runtime fixes preset sessions that
+        // previously started with `mcpServers: []` and could not answer rooms.
+        mcp_command: Some("buzz-dev-mcp"),
+        mcp_hooks: false,
+        underlying_cli: Some("hermes"),
+        cli_install_commands: &["curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash"],
+        cli_install_commands_windows: &[windows_install_command!("hermes", "https://hermes-agent.nousresearch.com/install.ps1")],
+        // Older Hermes installs may have `hermes` but not the `hermes-acp`
+        // launcher. `hermes update` refreshes the managed install and launchers.
+        adapter_install_commands: &["hermes update"],
+        cli_install_instructions_url: "https://hermes-agent.nousresearch.com/docs/getting-started/installation",
+        adapter_install_instructions_url: "https://hermes-agent.nousresearch.com/docs/user-guide/features/acp",
+        cli_install_hint: "Install Hermes Agent, configure provider credentials once, then select the provider-qualified model in Buzz.",
+        adapter_install_hint: "Run `hermes update` if the Hermes CLI exists but `hermes-acp` is missing.",
+        // Hermes reads the canonical AGENTS/.agents project paths itself.
+        skill_dir: None,
+        // Hermes advertises provider-qualified model ids over ACP. Persist the
+        // selected id into BUZZ_ACP_MODEL so buzz-acp applies session/set_model
+        // immediately after every session/new. This makes e.g.
+        // `ollama-cloud:<model>` sticky for the managed agent without changing
+        // the user's Hermes-wide default or requiring a separate launch command.
+        supports_acp_model_switching: true,
+        model_env_var: Some("BUZZ_ACP_MODEL"),
+        provider_env_var: None,
+        provider_locked: false,
+        // Buzz owns the per-session MCP list. Skip unrelated global MCP startup
+        // while still accepting MCP servers supplied through ACP session/new.
+        default_env: &[("HERMES_ACP_SKIP_CONFIGURED_MCP", "1")],
+        config_file_path: None,
+        config_file_format: None,
+        supports_acp_native_config: false,
+        // Hermes ACP currently exposes model + edit-approval mode, but not a
+        // reasoning-effort config option. Do not advertise a fake Buzz effort
+        // bridge: Hermes reads its real effort from agent.reasoning_effort in
+        // the active Hermes config.
+        thinking_env_var: None,
+        effort_normalization: None,
+        effort_accepted_values: None,
+        max_tokens_env_var: None,
+        context_limit_env_var: None,
+        max_rounds_env_var: None,
+        required_normalized_fields: &[],
+        login_hint: Some("Configure Ollama Cloud or another provider once, then choose its model in Buzz."),
+        auth_probe_args: None,
     },
     KnownAcpRuntime {
         id: "buzz-agent",
@@ -154,3 +213,38 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         auth_probe_args: None,
     },
 ];
+
+#[cfg(test)]
+mod solo_dev_runtime_tests {
+    use super::*;
+
+    fn runtime(id: &str) -> &'static KnownAcpRuntime {
+        KNOWN_ACP_RUNTIMES
+            .iter()
+            .find(|runtime| runtime.id == id)
+            .unwrap_or_else(|| panic!("runtime {id} must exist"))
+    }
+
+    #[test]
+    fn codex_projects_selected_model_through_acp_startup() {
+        let codex = runtime("codex");
+        assert!(codex.supports_acp_model_switching);
+        assert_eq!(codex.model_env_var, Some("BUZZ_ACP_MODEL"));
+        assert_eq!(codex.mcp_command, Some("buzz-dev-mcp"));
+    }
+
+    #[test]
+    fn hermes_is_first_class_buzz_runtime_with_session_controls() {
+        let hermes = runtime("hermes");
+        assert_eq!(hermes.commands, &["hermes-acp"]);
+        assert!(hermes.aliases.is_empty());
+        assert_eq!(hermes.underlying_cli, Some("hermes"));
+        assert_eq!(hermes.mcp_command, Some("buzz-dev-mcp"));
+        assert!(hermes.supports_acp_model_switching);
+        assert_eq!(hermes.model_env_var, Some("BUZZ_ACP_MODEL"));
+        assert_eq!(hermes.thinking_env_var, None);
+        assert!(hermes
+            .default_env
+            .contains(&("HERMES_ACP_SKIP_CONFIGURED_MCP", "1")));
+    }
+}

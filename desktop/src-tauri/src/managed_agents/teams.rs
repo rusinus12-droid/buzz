@@ -129,11 +129,14 @@ fn merge_teams_impl(
     }
 
     // Demote any stored team flagged as built-in whose id is no longer in
-    // built_ins (e.g. a built-in that has been retired). The record stays so
-    // existing references keep working; it becomes a user-owned custom team
-    // they can edit or delete.
+    // built_ins (e.g. a built-in that has been retired). The fork-provided Solo
+    // Dev team is deliberately seeded outside this upstream table, so preserve
+    // its built-in marker here and let `ensure_solo_dev_team_record` own it.
     for record in stored.iter_mut() {
-        if record.is_builtin && built_in_team_order(built_ins, &record.id).is_none() {
+        if record.is_builtin
+            && record.id != super::solo_dev::SOLO_DEV_TEAM_ID
+            && built_in_team_order(built_ins, &record.id).is_none()
+        {
             record.is_builtin = false;
             record.updated_at = now.to_string();
             changed = true;
@@ -177,6 +180,11 @@ pub(crate) fn load_teams_readonly(path: &std::path::Path) -> Result<Vec<TeamReco
 }
 
 pub fn load_teams<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<Vec<TeamRecord>, String> {
+    // The Solo Dev extension is fork-owned. Keep upstream's built-in team table
+    // unchanged, but ensure the two cooperative definitions exist before the
+    // team record is exposed through the normal mutable load path.
+    super::solo_dev::ensure_solo_dev_personas(app)?;
+
     let path = teams_store_path(app)?;
     let now = now_iso();
 
@@ -189,7 +197,10 @@ pub fn load_teams<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<Vec<TeamRecor
         Vec::new()
     };
 
-    let (mut records, changed) = merge_teams(records, &now);
+    let (mut records, mut changed) = merge_teams(records, &now);
+    if super::solo_dev::ensure_solo_dev_team_record(&mut records, &now) {
+        changed = true;
+    }
     sort_teams(&mut records);
 
     if changed || !path.exists() {
