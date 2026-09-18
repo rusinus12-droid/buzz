@@ -5,7 +5,7 @@ This fork ships a two-agent development team that keeps planning/review and impl
 ## Roles
 
 - **Architect** — runtime: `codex`, initial Codex agent mode: `read-only` (Codex ACP's conservative **Ask for approval** preset)
-- **Implementer** — runtime: `hermes`, default reasoning effort: `high`
+- **Implementer** — runtime: `hermes`; reasoning effort comes from Hermes' real `agent.reasoning_effort` setting
 
 The pack deliberately does **not** hard-code model IDs. Pick the current Codex model you want for Architect and an authenticated Hermes model (for example an Ollama Cloud model) for Implementer from Buzz's existing agent/model controls.
 
@@ -17,12 +17,13 @@ Buzz projects each role's selected model through `BUZZ_ACP_MODEL`. `buzz-acp` ap
    - Codex uses the normal Codex CLI login/ChatGPT subscription credential store.
    - Hermes uses the normal Hermes installation and ACP launcher (`hermes-acp`).
    - Hermes ACP reuses `~/.hermes` credentials/config. Configure Ollama Cloud once with the normal Hermes setup/model flow if it is not already configured; after that Buzz discovers the authenticated models over ACP and day-to-day work no longer needs a separate Hermes launch command.
+   - Set `agent.reasoning_effort` to `high` in Hermes for the normal Implementer baseline (for example `hermes config set agent.reasoning_effort high`). Current Hermes ACP does not expose reasoning effort as a session config option, so Buzz deliberately does not fake a per-agent effort control.
 2. In **Settings → Runtimes**, confirm Codex and Hermes are available.
 3. Configure the active Community's **repos directory** to the parent folder that already contains your local source checkouts (for example `/Users/you/Projects`). Buzz exposes it to managed agents as `REPOS/` without copying the repositories.
 4. In **Agents**, edit the seeded **Architect** and **Implementer** definitions to pin the models you want.
    - Architect keeps runtime `codex` and can be pinned to the desired Codex model (for this workflow, Astra). `INITIAL_AGENT_MODE=read-only` selects Codex ACP's conservative approval/network posture, but the sandbox is still workspace-write so the Architect can create `.agent-team` files. The team protocol—not filesystem immutability—keeps normal production-code edits assigned to Implementer.
    - Implementer keeps runtime `hermes`; Hermes ACP model discovery can surface configured Ollama Cloud models in the normal Buzz model picker.
-   - Implementer starts at `high` reasoning effort. Raise it to `max` from the managed-agent Thinking effort control for unusually hard fixes; the effort is applied at ACP session creation.
+   - Implementer's reasoning level is inherited from Hermes' own `agent.reasoning_effort`. The macOS smoke check fails clearly when it is not `high`, instead of claiming a Buzz-side effort override that Hermes ACP does not currently honor.
 5. Deploy **Solo Dev — Codex + Hermes** to the project/channel where you want the pair to work.
    - Solo Dev intentionally disables Buzz's normal missing-runtime fallback. If either role's configured runtime is unavailable (or unset), deployment is blocked instead of silently replacing that role with another runtime.
    - This protects the core contract: Architect stays Codex and Implementer stays Hermes unless you explicitly edit their definitions.
