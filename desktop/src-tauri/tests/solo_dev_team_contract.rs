@@ -35,14 +35,14 @@ fn solo_dev_extension_owns_the_role_pair() {
     assert!(SOLO_DEV_SOURCE.contains("IMPLEMENTER_PERSONA_ID"));
     assert!(SOLO_DEV_SOURCE.contains("ensure_solo_dev_team_record"));
     assert!(SOLO_DEV_SOURCE.contains("INITIAL_AGENT_MODE"));
-    assert!(SOLO_DEV_SOURCE.contains("BUZZ_ACP_EFFORT_LEVEL"));
+    assert!(!SOLO_DEV_SOURCE.contains("BUZZ_ACP_EFFORT_LEVEL"));
     assert!(
         SOLO_DEV_SOURCE.contains("\"read-only\""),
         "Architect should start in the conservative Codex ACP mode"
     );
     assert!(
-        SOLO_DEV_SOURCE.contains("\"high\""),
-        "Implementer should start with high reasoning effort"
+        CATALOG_SOURCE.contains("thinking_env_var: None"),
+        "Hermes reasoning should remain owned by Hermes config until ACP exposes a real effort control"
     );
 }
 
