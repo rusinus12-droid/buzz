@@ -163,11 +163,11 @@ pub(crate) const KNOWN_ACP_RUNTIMES: &[KnownAcpRuntime] = &[
         config_file_path: None,
         config_file_format: None,
         supports_acp_native_config: false,
-        // Hermes exposes thought-level through ACP. Treat the generic Buzz ACP
-        // startup sentinel as this runtime's native effort key so persona/global
-        // effort tiers participate in the normal projection. buzz-acp then
-        // applies the resolved value once when each Hermes session is created.
-        thinking_env_var: Some("BUZZ_ACP_EFFORT_LEVEL"),
+        // Hermes ACP currently exposes model + edit-approval mode, but not a
+        // reasoning-effort config option. Do not advertise a fake Buzz effort
+        // bridge: Hermes reads its real effort from agent.reasoning_effort in
+        // the active Hermes config.
+        thinking_env_var: None,
         effort_normalization: None,
         effort_accepted_values: None,
         max_tokens_env_var: None,
@@ -242,7 +242,7 @@ mod solo_dev_runtime_tests {
         assert_eq!(hermes.mcp_command, Some("buzz-dev-mcp"));
         assert!(hermes.supports_acp_model_switching);
         assert_eq!(hermes.model_env_var, Some("BUZZ_ACP_MODEL"));
-        assert_eq!(hermes.thinking_env_var, Some("BUZZ_ACP_EFFORT_LEVEL"));
+        assert_eq!(hermes.thinking_env_var, None);
         assert!(hermes
             .default_env
             .contains(&("HERMES_ACP_SKIP_CONFIGURED_MCP", "1")));
