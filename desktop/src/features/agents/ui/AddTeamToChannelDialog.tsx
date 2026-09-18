@@ -6,7 +6,7 @@ import {
   useCreateChannelManagedAgentsMutation,
 } from "@/features/agents/hooks";
 import { useGlobalAgentConfig } from "@/features/agents/useGlobalAgentConfig";
-import type { CreateChannelManagedAgentsResult } from "@/features/agents/channelAgents";
+import type {\n  CreateChannelManagedAgentInput,\n  CreateChannelManagedAgentsResult,\n} from "@/features/agents/channelAgents";
 import {
   emptyResolvedTeamPersonas,
   resolveTeamPersonas,
@@ -98,18 +98,26 @@ export function AddTeamToChannelDialog({
   );
   const soloDevRuntimeBlocked =
     soloDevRuntimeGuard.strict &&
-    soloDevRuntimeGuard.missingRuntimeIds.length > 0;
+    (soloDevRuntimeGuard.missingRuntimeIds.length > 0 ||
+      soloDevRuntimeGuard.roleContractErrors.length > 0);
   const soloDevRuntimeError = React.useMemo(() => {
     if (!soloDevRuntimeBlocked) {
       return null;
     }
-    const missing = soloDevRuntimeGuard.missingRuntimeIds.map((runtimeId) =>
-      runtimeId === UNCONFIGURED_RUNTIME_ID
-        ? "an explicitly configured runtime for every Solo Dev role"
-        : runtimeId,
-    );
-    return `Solo Dev requires ${missing.join(", ")}. Runtime fallback is disabled for this team so Architect and Implementer cannot silently collapse onto the same runtime.`;
-  }, [soloDevRuntimeBlocked, soloDevRuntimeGuard.missingRuntimeIds]);
+
+    const problems = [...soloDevRuntimeGuard.roleContractErrors];
+    if (soloDevRuntimeGuard.missingRuntimeIds.length > 0) {
+      problems.push(
+        `Missing required runtimes: ${soloDevRuntimeGuard.missingRuntimeIds.join(", ")}.`,
+      );
+    }
+
+    return `${problems.join(" ")} Runtime fallback is disabled for this team so Architect and Implementer cannot silently collapse onto the same runtime.`;
+  }, [
+    soloDevRuntimeBlocked,
+    soloDevRuntimeGuard.missingRuntimeIds,
+    soloDevRuntimeGuard.roleContractErrors,
+  ]);
 
   // Surface normal fallback warnings only for generic teams. Solo Dev renders a
   // blocking error above instead of a warning because fallback is forbidden.
@@ -156,7 +164,7 @@ export function AddTeamToChannelDialog({
       return;
     }
 
-    const inputs = [];
+    const inputs: CreateChannelManagedAgentInput[] = [];
     for (const persona of resolved) {
       const runtimeToUse = soloDevRuntimeGuard.strict
         ? (runtimes.find(
