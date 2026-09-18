@@ -60,6 +60,9 @@ export function AddTeamToChannelDialog({
   const providersQuery = useAvailableAcpRuntimes();
   const [channelId, setChannelId] = React.useState("");
   const [role, setRole] = React.useState<Exclude<ChannelRole, "owner">>("bot");
+  const [soloDevDeployError, setSoloDevDeployError] = React.useState<
+    string | null
+  >(null);
   const deployMutation = useCreateChannelManagedAgentsMutation(
     channelId || null,
   );
@@ -132,6 +135,7 @@ export function AddTeamToChannelDialog({
   function reset() {
     setChannelId("");
     setRole("bot");
+    setSoloDevDeployError(null);
     deployMutation.reset();
   }
 
@@ -207,7 +211,18 @@ export function AddTeamToChannelDialog({
     }
 
     try {
+      setSoloDevDeployError(null);
       const result = await deployMutation.mutateAsync(inputs);
+      if (soloDevRuntimeGuard.strict && result.failures.length > 0) {
+        const details = result.failures
+          .map((failure) => `${failure.name}: ${failure.error}`)
+          .join(" · ");
+        setSoloDevDeployError(
+          `Solo Dev deployment is incomplete. ${details} Retry Deploy after fixing the runtime issue; already-created Solo Dev roles will be reused instead of duplicated.`,
+        );
+        return;
+      }
+
       onDeployed(selectedChannel, result);
       handleOpenChange(false);
     } catch {
@@ -337,6 +352,12 @@ export function AddTeamToChannelDialog({
             {channelsQuery.error instanceof Error ? (
               <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {channelsQuery.error.message}
+              </p>
+            ) : null}
+
+            {soloDevDeployError ? (
+              <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {soloDevDeployError}
               </p>
             ) : null}
 
