@@ -6,7 +6,10 @@ import {
   useCreateChannelManagedAgentsMutation,
 } from "@/features/agents/hooks";
 import { useGlobalAgentConfig } from "@/features/agents/useGlobalAgentConfig";
-import type {\n  CreateChannelManagedAgentInput,\n  CreateChannelManagedAgentsResult,\n} from "@/features/agents/channelAgents";
+import type {
+  CreateChannelManagedAgentInput,
+  CreateChannelManagedAgentsResult,
+} from "@/features/agents/channelAgents";
 import {
   emptyResolvedTeamPersonas,
   resolveTeamPersonas,
@@ -16,10 +19,7 @@ import {
   getDefaultPersonaRuntime,
   resolvePersonaRuntime,
 } from "@/features/agents/lib/resolvePersonaRuntime";
-import {
-  getSoloDevRuntimeGuard,
-  UNCONFIGURED_RUNTIME_ID,
-} from "@/features/agents/lib/soloDevRuntimeGuard";
+import { getSoloDevRuntimeGuard } from "@/features/agents/lib/soloDevRuntimeGuard";
 import { useChannelsQuery } from "@/features/channels/hooks";
 import { ProfileAvatar } from "@/features/profile/ui/ProfileAvatar";
 import type {
@@ -197,8 +197,11 @@ export function AddTeamToChannelDialog({
         model: persona.model ?? undefined,
         personaId: persona.id,
         teamId: team.id,
-        // One persona can be deployed under multiple teams with different instructions.
-        forceNewInstance: true,
+        // Generic teams keep the upstream "fresh copy per deploy" behavior.
+        // Solo Dev reuses the same team-bound persona instance so deploying it
+        // twice to one channel cannot create duplicate Architect/Implementer
+        // names and break exact @mention handoffs.
+        forceNewInstance: !soloDevRuntimeGuard.strict,
         role,
       });
     }
