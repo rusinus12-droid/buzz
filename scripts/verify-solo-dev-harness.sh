@@ -27,6 +27,8 @@ printf '\n==> Solo Dev desktop TypeScript contracts\n'
 node \
   --import ./desktop/test-loader.mjs \
   --experimental-strip-types \
-  --test desktop/src/features/agents/lib/soloDevRuntimeGuard.test.mjs
+  --test \
+  desktop/src/features/agents/lib/soloDevRuntimeGuard.test.mjs \
+  desktop/src/features/agents/lib/soloDevSeedRefresh.test.mjs
 
 printf '\nSolo Dev harness contract checks passed.\n'
