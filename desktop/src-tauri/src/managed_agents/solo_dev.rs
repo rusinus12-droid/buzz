@@ -117,6 +117,19 @@ pub(crate) fn merge_solo_dev_personas(
     Ok(changed)
 }
 
+pub(crate) fn ensure_solo_dev_personas<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Result<bool, String> {
+    let now = crate::util::now_iso();
+    let mut personas = super::load_personas(app)?;
+    if !merge_solo_dev_personas(&mut personas, &now)? {
+        return Ok(false);
+    }
+
+    super::save_personas(app, &personas)?;
+    Ok(true)
+}
+
 /// Add the fork-specific Solo Dev team to the normal mutable team load without
 /// changing upstream's `BUILT_IN_TEAMS` table. Keeping the extension at this
 /// seam avoids rewriting upstream tests and makes future rebases smaller.
