@@ -122,16 +122,31 @@ pub(crate) fn ensure_solo_dev_personas<R: tauri::Runtime>(
 /// Add the fork-specific Solo Dev team to the normal mutable team load without
 /// changing upstream's `BUILT_IN_TEAMS` table. Keeping the extension at this
 /// seam avoids rewriting upstream tests and makes future rebases smaller.
-/// Existing user customizations are preserved; only a stale `is_builtin`
-/// marker is restored so the team cannot be deleted accidentally.
+///
+/// Display-level customizations such as the team name are preserved, but the
+/// role membership is an invariant: the built-in team must always contain
+/// exactly Architect + Implementer. Repairing that list prevents stale or
+/// hand-edited stores from silently deploying only one side of the harness.
 pub(crate) fn ensure_solo_dev_team_record(records: &mut Vec<TeamRecord>, now: &str) -> bool {
+    let required_persona_ids = vec![
+        ARCHITECT_PERSONA_ID.to_string(),
+        IMPLEMENTER_PERSONA_ID.to_string(),
+    ];
+
     if let Some(existing) = records.iter_mut().find(|team| team.id == SOLO_DEV_TEAM_ID) {
-        if existing.is_builtin {
-            return false;
+        let mut changed = false;
+        if !existing.is_builtin {
+            existing.is_builtin = true;
+            changed = true;
         }
-        existing.is_builtin = true;
-        existing.updated_at = now.to_string();
-        return true;
+        if existing.persona_ids != required_persona_ids {
+            existing.persona_ids = required_persona_ids;
+            changed = true;
+        }
+        if changed {
+            existing.updated_at = now.to_string();
+        }
+        return changed;
     }
 
     records.push(TeamRecord {
@@ -144,10 +159,7 @@ pub(crate) fn ensure_solo_dev_team_record(records: &mut Vec<TeamRecord>, now: &s
         // Shared instructions already live in both persona prompts so they also
         // survive standalone persona use; do not inject the same text twice.
         instructions: None,
-        persona_ids: vec![
-            ARCHITECT_PERSONA_ID.to_string(),
-            IMPLEMENTER_PERSONA_ID.to_string(),
-        ],
+        persona_ids: required_persona_ids,
         is_builtin: true,
         shared: false,
         catalog_source: None,
@@ -225,7 +237,7 @@ mod tests {
     }
 
     #[test]
-    fn team_seed_is_idempotent_and_preserves_customization() {
+    fn team_seed_repairs_membership_and_preserves_display_customization() {
         let mut teams = Vec::new();
         assert!(ensure_solo_dev_team_record(
             &mut teams,
@@ -244,15 +256,24 @@ mod tests {
 
         teams[0].name = "My Solo Dev Team".to_string();
         teams[0].persona_ids = vec![ARCHITECT_PERSONA_ID.to_string()];
-        assert!(!ensure_solo_dev_team_record(
+        assert!(ensure_solo_dev_team_record(
             &mut teams,
             "2026-09-18T00:00:00Z"
         ));
         assert_eq!(teams[0].name, "My Solo Dev Team");
         assert_eq!(
             teams[0].persona_ids,
-            vec![ARCHITECT_PERSONA_ID.to_string()]
+            vec![
+                ARCHITECT_PERSONA_ID.to_string(),
+                IMPLEMENTER_PERSONA_ID.to_string()
+            ]
         );
+        assert_eq!(teams[0].updated_at, "2026-09-18T00:00:00Z");
+
+        assert!(!ensure_solo_dev_team_record(
+            &mut teams,
+            "2026-09-19T00:00:00Z"
+        ));
     }
 
     #[test]
