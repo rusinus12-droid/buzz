@@ -94,26 +94,24 @@ pub(crate) fn solo_dev_persona_records(now: &str) -> Result<Vec<AgentDefinition>
     ])
 }
 
-/// Ensure the fork's two cooperative personas exist without replacing an
-/// existing record. This is intentionally idempotent: runtime/model choices or
-/// future local edits stored on an existing definition remain untouched.
-pub(crate) fn ensure_solo_dev_personas<R: tauri::Runtime>(
-    app: &AppHandle<R>,
+/// Merge the fork's two cooperative personas into the normal persona load.
+///
+/// This runs from `load_personas`, not from team loading, so the Agents and
+/// Teams surfaces observe the same definitions regardless of which query warms
+/// first. Existing records are left untouched: model choices and other local
+/// edits survive upgrades, while missing definitions are re-seeded.
+pub(crate) fn merge_solo_dev_personas(
+    personas: &mut Vec<AgentDefinition>,
+    now: &str,
 ) -> Result<bool, String> {
-    let now = crate::util::now_iso();
-    let mut personas = super::load_personas(app)?;
     let mut changed = false;
 
-    for seed in solo_dev_persona_records(&now)? {
+    for seed in solo_dev_persona_records(now)? {
         if personas.iter().any(|record| record.id == seed.id) {
             continue;
         }
         personas.push(seed);
         changed = true;
-    }
-
-    if changed {
-        super::save_personas(app, &personas)?;
     }
 
     Ok(changed)
@@ -176,6 +174,43 @@ pub(crate) fn ensure_solo_dev_team_record(records: &mut Vec<TeamRecord>, now: &s
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn persona_merge_is_idempotent_and_recovers_missing_role() {
+        let mut records = Vec::new();
+        assert!(merge_solo_dev_personas(
+            &mut records,
+            "2026-09-17T00:00:00Z"
+        )
+        .unwrap());
+        assert_eq!(records.len(), 2);
+
+        records.retain(|record| record.id == ARCHITECT_PERSONA_ID);
+        records[0].model = Some("custom-architect-model".to_string());
+
+        assert!(merge_solo_dev_personas(
+            &mut records,
+            "2026-09-18T00:00:00Z"
+        )
+        .unwrap());
+        assert_eq!(records.len(), 2);
+        assert_eq!(
+            records
+                .iter()
+                .find(|record| record.id == ARCHITECT_PERSONA_ID)
+                .and_then(|record| record.model.as_deref()),
+            Some("custom-architect-model")
+        );
+        assert!(records
+            .iter()
+            .any(|record| record.id == IMPLEMENTER_PERSONA_ID));
+
+        assert!(!merge_solo_dev_personas(
+            &mut records,
+            "2026-09-19T00:00:00Z"
+        )
+        .unwrap());
+    }
 
     #[test]
     fn definitions_route_architecture_to_codex_and_implementation_to_hermes() {
