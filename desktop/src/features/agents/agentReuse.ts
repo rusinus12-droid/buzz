@@ -63,6 +63,38 @@ export function findReusablePersonaAgent(
   return pickPreferredManagedAgent(candidates);
 }
 
+/**
+ * Reuse a persona instance only when it belongs to the same deployment team.
+ *
+ * Team deployment differs from the generic persona picker: re-deploying the
+ * same team to the same channel must be idempotent, otherwise duplicate
+ * display names make @mention resolution ambiguous. Prefer an instance already
+ * in the channel, then fall back to another instance bound to the same team.
+ * Never cross team boundaries merely because personaId matches.
+ */
+export function findReusableTeamPersonaAgent(
+  agents: ManagedAgent[],
+  personaId: string,
+  teamId: string,
+  channelMemberPubkeys: ReadonlySet<string>,
+): ManagedAgent | undefined {
+  const candidates = agents.filter(
+    (agent) => agent.personaId === personaId && agent.teamId === teamId,
+  );
+  const inChannel = candidates.filter((agent) =>
+    channelMemberPubkeys.has(normalizePubkey(agent.pubkey)),
+  );
+
+  return (
+    pickPreferredManagedAgent(inChannel) ??
+    pickPreferredManagedAgent(
+      candidates.filter(
+        (agent) => !channelMemberPubkeys.has(normalizePubkey(agent.pubkey)),
+      ),
+    )
+  );
+}
+
 export function findReusableGenericAgent(
   agents: ManagedAgent[],
   command: string,
