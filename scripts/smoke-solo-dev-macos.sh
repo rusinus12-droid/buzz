@@ -37,6 +37,17 @@ codex login status
 printf '\n==> Hermes ACP installation\n'
 hermes acp --check
 
+printf '\n==> Hermes reasoning baseline\n'
+HERMES_REASONING="$(hermes config get agent.reasoning_effort 2>/dev/null || true)"
+if ! printf '%s\n' "$HERMES_REASONING" | grep -Eqi '(^|[^a-z])high([^a-z]|$)'; then
+  echo "Hermes agent.reasoning_effort is not high." >&2
+  echo "Current value: ${HERMES_REASONING:-<unset>}" >&2
+  echo "Set the Solo Dev baseline once with:" >&2
+  echo "  hermes config set agent.reasoning_effort high" >&2
+  exit 1
+fi
+echo "Hermes reasoning effort: high"
+
 printf '\n==> Build local buzz-acp probe\n'
 cargo build -p buzz-acp
 BUZZ_ACP_BIN="$ROOT/target/debug/buzz-acp"
