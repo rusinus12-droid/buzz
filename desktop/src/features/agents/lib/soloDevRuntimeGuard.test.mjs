@@ -125,4 +125,9 @@ test("team deployment UI consumes the strict Solo Dev guard", () => {
     /if \(!runtimeToUse\) \{\s*return;/,
     "deployment should fail closed if runtime availability changes between render and click",
   );
+  assert.match(
+    source,
+    /forceNewInstance: !soloDevRuntimeGuard\.strict/,
+    "Solo Dev redeploy should reuse team-bound role instances instead of creating duplicate mention names",
+  );
 });
