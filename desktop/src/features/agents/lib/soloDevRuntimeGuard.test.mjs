@@ -4,53 +4,100 @@ import test from "node:test";
 
 import {
   getSoloDevRuntimeGuard,
+  SOLO_DEV_ARCHITECT_PERSONA_ID,
+  SOLO_DEV_IMPLEMENTER_PERSONA_ID,
   SOLO_DEV_TEAM_ID,
-  UNCONFIGURED_RUNTIME_ID,
 } from "./soloDevRuntimeGuard.ts";
+
+const architect = (runtime = "codex") => ({
+  id: SOLO_DEV_ARCHITECT_PERSONA_ID,
+  runtime,
+});
+const implementer = (runtime = "hermes") => ({
+  id: SOLO_DEV_IMPLEMENTER_PERSONA_ID,
+  runtime,
+});
 
 test("ordinary teams keep generic runtime fallback behavior", () => {
   const guard = getSoloDevRuntimeGuard(
     "team:ordinary",
-    [{ runtime: "codex" }, { runtime: "hermes" }],
+    [architect(), implementer()],
     [{ id: "codex" }],
   );
 
-  assert.deepEqual(guard, { strict: false, missingRuntimeIds: [] });
+  assert.deepEqual(guard, {
+    strict: false,
+    missingRuntimeIds: [],
+    roleContractErrors: [],
+  });
 });
 
-test("Solo Dev requires every persona runtime to be available", () => {
+test("Solo Dev requires both Codex and Hermes to be available", () => {
   const guard = getSoloDevRuntimeGuard(
     SOLO_DEV_TEAM_ID,
-    [{ runtime: "codex" }, { runtime: "hermes" }],
+    [architect(), implementer()],
     [{ id: "codex" }],
   );
 
   assert.deepEqual(guard, {
     strict: true,
     missingRuntimeIds: ["hermes"],
+    roleContractErrors: [],
   });
 });
 
-test("Solo Dev is deployable when both requested runtimes are available", () => {
+test("Solo Dev is deployable only with the exact two-role binding", () => {
   const guard = getSoloDevRuntimeGuard(
     SOLO_DEV_TEAM_ID,
-    [{ runtime: "codex" }, { runtime: "hermes" }],
+    [architect(), implementer()],
     [{ id: "hermes" }, { id: "codex" }],
   );
 
-  assert.deepEqual(guard, { strict: true, missingRuntimeIds: [] });
+  assert.deepEqual(guard, {
+    strict: true,
+    missingRuntimeIds: [],
+    roleContractErrors: [],
+  });
 });
 
-test("Solo Dev blocks blank runtime configuration and deduplicates ids", () => {
+test("Solo Dev rejects collapsing Architect onto Hermes even when Hermes is available", () => {
   const guard = getSoloDevRuntimeGuard(
     SOLO_DEV_TEAM_ID,
-    [{ runtime: "hermes" }, { runtime: "hermes" }, { runtime: null }],
-    [],
+    [architect("hermes"), implementer("hermes")],
+    [{ id: "hermes" }, { id: "codex" }],
   );
 
-  assert.deepEqual(guard.missingRuntimeIds, [
-    "hermes",
-    UNCONFIGURED_RUNTIME_ID,
+  assert.deepEqual(guard.missingRuntimeIds, []);
+  assert.deepEqual(guard.roleContractErrors, [
+    "Architect must use codex; configured runtime is hermes.",
+  ]);
+});
+
+test("Solo Dev rejects a team with the Implementer missing", () => {
+  const guard = getSoloDevRuntimeGuard(
+    SOLO_DEV_TEAM_ID,
+    [architect()],
+    [{ id: "codex" }, { id: "hermes" }],
+  );
+
+  assert.deepEqual(guard.missingRuntimeIds, []);
+  assert.equal(guard.roleContractErrors.length, 2);
+  assert.match(guard.roleContractErrors[0], /requires exactly 2 roles/);
+  assert.equal(
+    guard.roleContractErrors[1],
+    "Implementer role is missing from the team.",
+  );
+});
+
+test("Solo Dev rejects an unset required role runtime", () => {
+  const guard = getSoloDevRuntimeGuard(
+    SOLO_DEV_TEAM_ID,
+    [architect(""), implementer()],
+    [{ id: "codex" }, { id: "hermes" }],
+  );
+
+  assert.deepEqual(guard.roleContractErrors, [
+    "Architect must use codex; configured runtime is (unset).",
   ]);
 });
 
@@ -61,7 +108,7 @@ test("team deployment UI consumes the strict Solo Dev guard", () => {
   );
 
   assert.match(source, /getSoloDevRuntimeGuard\(team\?\.id, resolved, runtimes\)/);
-  assert.match(source, /soloDevRuntimeBlocked/);
+  assert.match(source, /soloDevRuntimeGuard\.roleContractErrors\.length > 0/);
   assert.match(source, /Runtime fallback is disabled for this team/);
   assert.match(
     source,
@@ -70,12 +117,12 @@ test("team deployment UI consumes the strict Solo Dev guard", () => {
   );
   assert.match(
     source,
+    /const inputs: CreateChannelManagedAgentInput\[\] = \[\];/,
+    "deployment inputs should retain the channel-agent input contract under strict TypeScript",
+  );
+  assert.match(
+    source,
     /if \(!runtimeToUse\) \{\s*return;/,
     "deployment should fail closed if runtime availability changes between render and click",
-  );
-  assert.doesNotMatch(
-    source,
-    /throw new Error\(\s*`Solo Dev runtime/,
-    "local strict-runtime validation should not be swallowed by the mutation error catch",
   );
 });
